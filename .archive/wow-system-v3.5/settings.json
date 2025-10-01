@@ -1,0 +1,91 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "model": "claude-opus-4-1-20250805",
+  "forceLoginMethod": "claudeai",
+  "env": {
+    "WOW_ENFORCEMENT": "ULTIMATE",
+    "WOW_VERSION": "3.5.0"
+  },
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash -c 'source /home/destiny/.ai-dev-env/loader.sh >/dev/null 2>&1; mkdir -p $WOW_STATE 2>/dev/null; echo 100 > $WOW_STATE/score 2>/dev/null; echo 0 > $WOW_STATE/streak 2>/dev/null; echo \"SESSION_START:$(date +%s)\" >> $WOW_STATE/audit.log 2>/dev/null; wow_display_banner claude'"
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash -c 'score=$(cat /tmp/.wow-state/score 2>/dev/null || echo 100); streak=$(cat /tmp/.wow-state/streak 2>/dev/null || echo 0); trust=$(cat /tmp/.wow-state/trust 2>/dev/null || echo HIGH); violations=$(grep VIOLATION /tmp/.wow-state/audit.log 2>/dev/null | wc -l || echo 0); grade=F; [ $score -ge 95 ] && grade=A+; [ $score -ge 90 ] && [ $score -lt 95 ] && grade=A; [ $score -ge 80 ] && [ $score -lt 90 ] && grade=B; [ $score -ge 70 ] && [ $score -lt 80 ] && grade=C; [ $score -lt 70 ] && grade=F; echo \"⚡ Score:$score($grade) | Streak:$streak | Trust:$trust | Violations:$violations | Edit>Create\"'"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/home/destiny/.claude/scripts/wow-bash-filter.sh"
+          }
+        ]
+      },
+      {
+        "matcher": "Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/home/destiny/.claude/scripts/wow-write-handler.sh"
+          }
+        ]
+      },
+      {
+        "matcher": "Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash -c 'STATE_DIR=\"/tmp/.wow-state\"; streak=$(cat \"$STATE_DIR/streak\" 2>/dev/null || echo 0); streak=$((streak + 1)); echo $streak > \"$STATE_DIR/streak\"; score=$(cat \"$STATE_DIR/score\" 2>/dev/null || echo 100); score=$((score + 2)); [ $score -gt 100 ] && score=100; echo $score > \"$STATE_DIR/score\"; echo \"$(date +%s):EDIT:SUCCESS\" >> \"$STATE_DIR/audit.log\"; badges=\"\"; [ $streak -ge 10 ] && badges=\"🏆 Master\"; [ $streak -ge 5 ] && [ $streak -lt 10 ] && badges=\"⭐ Streak\"; echo \"✅ Excellent! Edit #$streak (WoW compliant) $badges | +2 score\"; echo \"📝 Remember: Update documentation after this edit\"; cat'"
+          }
+        ]
+      },
+      {
+        "matcher": "MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash -c 'STATE_DIR=\"/tmp/.wow-state\"; streak=$(cat \"$STATE_DIR/streak\" 2>/dev/null || echo 0); streak=$((streak + 3)); echo $streak > \"$STATE_DIR/streak\"; score=$(cat \"$STATE_DIR/score\" 2>/dev/null || echo 100); score=$((score + 5)); [ $score -gt 100 ] && score=100; echo $score > \"$STATE_DIR/score\"; echo \"🌟 MultiEdit Excellence! Streak:$streak (+3) | Score:$score (+5)\"; cat'"
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash -c 'STATE_DIR=\"/tmp/.wow-state\"; input=$(cat); cmd=$(echo \"$input\" | jq -r .command 2>/dev/null); modified=false; original_cmd=\"$cmd\"; if echo \"$cmd\" | grep -q \"git commit\"; then if echo \"$cmd\" | grep -qE \"🎉|🚀|✨|🔥|💯|😊|👍|🎯|💪|🌟|🎨|🐛|📝|♻️|⚡|💥|🎊|🎈\"; then cmd=$(echo \"$cmd\" | sed \"s/[🎉🚀✨🔥💯😊👍🎯💪🌟🎨🐛📝♻️⚡💥🎊🎈]//g\"); echo \"🚫 AUTO-FIX: Removed emojis from commit (WoW compliance)\"; modified=true; fi; if ! echo \"$cmd\" | grep -q \"author.*Chude.*chude@emeke.org\"; then cmd=\"$cmd --author=\\\"Chude <chude@emeke.org>\\\"\"; echo \"✅ AUTO-FIX: Added correct author (WoW compliance)\"; modified=true; fi; fi; if echo \"$cmd\" | grep -qE \"rm -rf /|sudo rm -rf|chmod 777\"; then echo \"☠️ DANGEROUS COMMAND BLOCKED\"; exit 2; fi; if [ \"$modified\" = true ]; then echo \"📝 Original: $original_cmd\"; echo \"✨ Fixed: $cmd\"; echo \"$input\" | jq \".command = \\\"$cmd\\\"\"; else echo \"$input\"; fi'"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash -c 'STATE_DIR=\"/tmp/.wow-state\"; score=$(cat \"$STATE_DIR/score\" 2>/dev/null || echo 100); streak=$(cat \"$STATE_DIR/streak\" 2>/dev/null || echo 0); trust=$(cat \"$STATE_DIR/trust\" 2>/dev/null || echo HIGH); edits=$(grep :EDIT: \"$STATE_DIR/audit.log\" 2>/dev/null | wc -l || echo 0); violations=$(grep :VIOLATION: \"$STATE_DIR/audit.log\" 2>/dev/null | wc -l || echo 0); grade=F; [ $score -ge 95 ] && grade=A+; [ $score -ge 90 ] && [ $score -lt 95 ] && grade=A; [ $score -ge 80 ] && [ $score -lt 90 ] && grade=B; [ $score -lt 80 ] && grade=F; echo \"═══════════════════════════════════════════════════════════════\"; echo \"🏁 WOW SESSION REPORT\"; echo \"═══════════════════════════════════════════════════════════════\"; echo \"Final Score: $score/100 ($grade)\"; echo \"Edit Streak: $streak\"; echo \"Trust Level: $trust\"; echo \"Good Edits: $edits\"; echo \"Violations: $violations\"; [ $score -ge 95 ] && echo \"🏆 OUTSTANDING! Perfect WoW compliance!\"; [ $score -ge 80 ] && [ $score -lt 95 ] && echo \"✅ Good session! Minor improvements needed.\"; [ $score -lt 80 ] && echo \"⚠️ Needs improvement. Review WoW principles.\"; echo \"═══════════════════════════════════════════════════════════════\"'"
+          }
+        ]
+      }
+    ]
+  }
+}

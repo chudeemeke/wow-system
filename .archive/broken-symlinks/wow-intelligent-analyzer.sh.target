@@ -1,0 +1,1 @@
+../wow-system/strategies/wow-intelligent-analyzer.sh

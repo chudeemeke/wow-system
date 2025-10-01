@@ -1,0 +1,36 @@
+# Operating System
+.DS_Store
+Thumbs.db
+
+# Editor
+*.swp
+*.swo
+*~
+.vscode/
+.idea/
+
+# Backup files
+*.bak
+*.backup
+*.old
+
+# Test artifacts
+coverage/
+.coverage
+htmlcov/
+*.log
+
+# Temporary files
+/tmp/
+*.tmp
+
+# State files (don't commit ephemeral state)
+.wow-state*
+state/*.jsonl
+
+# Node modules (if we add any tooling)
+node_modules/
+
+# Build artifacts
+dist/
+build/

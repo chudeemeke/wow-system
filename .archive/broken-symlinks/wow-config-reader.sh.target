@@ -1,0 +1,1 @@
+../wow-system/core/wow-config-reader.sh

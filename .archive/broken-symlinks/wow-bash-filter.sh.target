@@ -1,0 +1,1 @@
+../wow-system/handlers/wow-bash-filter.sh
