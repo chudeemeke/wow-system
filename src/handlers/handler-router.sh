@@ -121,6 +121,8 @@ handler_init() {
     handler_register "Read" "${handler_dir}/read-handler.sh"
     handler_register "Glob" "${handler_dir}/glob-handler.sh"
     handler_register "Grep" "${handler_dir}/grep-handler.sh"
+    handler_register "Task" "${handler_dir}/task-handler.sh"
+    handler_register "WebFetch" "${handler_dir}/webfetch-handler.sh"
 
     wow_debug "Handler router initialized with $(echo "${#_WOW_HANDLER_REGISTRY[@]}") handlers"
 }

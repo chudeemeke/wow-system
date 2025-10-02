@@ -1,4 +1,4 @@
-# WoW System v4.2.0
+# WoW System v4.3.0
 
 **Ways of Working Enforcement for Claude Code**
 
@@ -181,6 +181,25 @@ Once installed, the WoW System operates transparently in the background:
 - ⚠️ Warns: Private key pattern searches
 - ⚠️ Warns: PII pattern searches (SSN, credit card numbers)
 
+#### Task Handler
+- ⚠️ Monitors: Autonomous agent launches and resource usage
+- ⚠️ Warns: Dangerous task patterns (infinite loops, recursive spawning)
+- ⚠️ Warns: Credential harvesting attempts
+- ⚠️ Warns: Data exfiltration tasks
+- ⚠️ Warns: Network abuse patterns (scanning, brute force)
+- ⚠️ Warns: System modification attempts
+- 📊 Tracks: Rate limiting (max 20 tasks/session, 5 tasks/minute)
+
+#### WebFetch Handler
+- ⛔ Blocks: Private IP addresses (SSRF prevention)
+- ⛔ Blocks: Localhost and internal networks (127.0.0.1, 192.168.x.x, 10.x.x.x)
+- ⛔ Blocks: `file://` protocol and other dangerous protocols
+- ⚠️ Warns: URLs with embedded credentials
+- ⚠️ Warns: Suspicious domains and TLDs (.tk, .ml, etc.)
+- ⚠️ Warns: Data exfiltration endpoints (pastebin, etc.)
+- ⚠️ Warns: URL shorteners (bit.ly, etc.)
+- 📊 Tracks: External request rate limiting
+
 ### Scoring System
 
 Your WoW Score (0-100) reflects code quality and safety:
@@ -246,7 +265,13 @@ bash tests/test-glob-handler.sh
 # Grep handler (24 tests)
 bash tests/test-grep-handler.sh
 
-# Total: 144 tests, 100% passing
+# Task handler (24 tests)
+bash tests/test-task-handler.sh
+
+# WebFetch handler (24 tests)
+bash tests/test-webfetch-handler.sh
+
+# Total: 192 tests, 100% passing
 ```
 
 ### Test Coverage
@@ -385,12 +410,13 @@ session_info
 ## Roadmap
 
 - [x] Additional handlers (Read, Glob, Grep) - **Completed v4.2.0**
+- [x] High-priority handlers (Task, WebFetch) - **Completed v4.3.0**
+- [ ] Medium-priority handlers (NotebookEdit, WebSearch)
 - [ ] Machine learning-based anomaly detection
 - [ ] Web dashboard for metrics visualization
 - [ ] Multi-session analytics
 - [ ] Team-based scoring and leaderboards
 - [ ] Custom rule DSL
-- [ ] Additional tool handlers (NotebookEdit, WebFetch, etc.)
 
 ---
 
@@ -425,6 +451,6 @@ For issues, questions, or feedback:
 - Check `install.sh` output for diagnostics
 - Run self-tests: `bash src/handlers/bash-handler.sh`
 
-**Version**: 4.2.0
+**Version**: 4.3.0
 **Last Updated**: 2025-10-02
 **Status**: Production Ready ✅

@@ -16,7 +16,7 @@ C_RESET='\033[0m'
 echo -e "${C_BOLD}${C_CYAN}"
 cat <<'EOF'
 ╔══════════════════════════════════════╗
-║  WoW System Installation v4.2.0      ║
+║  WoW System Installation v4.3.0      ║
 ║  Ways of Working Enforcement         ║
 ╚══════════════════════════════════════╝
 EOF
@@ -153,6 +153,12 @@ bash "${WOW_INSTALL_DIR}/src/handlers/glob-handler.sh" | grep -q "All self-tests
 
 bash "${WOW_INSTALL_DIR}/src/handlers/grep-handler.sh" | grep -q "All self-tests passed" && \
     echo -e "${C_GREEN}✓ Grep handler${C_RESET}" || echo -e "${C_RED}✗ Grep handler${C_RESET}"
+
+bash "${WOW_INSTALL_DIR}/src/handlers/task-handler.sh" | grep -q "All self-tests passed" && \
+    echo -e "${C_GREEN}✓ Task handler${C_RESET}" || echo -e "${C_RED}✗ Task handler${C_RESET}"
+
+bash "${WOW_INSTALL_DIR}/src/handlers/webfetch-handler.sh" | grep -q "All self-tests passed" && \
+    echo -e "${C_GREEN}✓ WebFetch handler${C_RESET}" || echo -e "${C_RED}✗ WebFetch handler${C_RESET}"
 
 bash "${WOW_INSTALL_DIR}/src/engines/scoring-engine.sh" | grep -q "All tests passed" && \
     echo -e "${C_GREEN}✓ Scoring engine${C_RESET}" || echo -e "${C_RED}✗ Scoring engine${C_RESET}"
