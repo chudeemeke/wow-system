@@ -1,0 +1,24 @@
+{
+  "version": "4.1.0",
+  "enforcement": {
+    "enabled": true,
+    "strict_mode": false,
+    "block_on_violation": false
+  },
+  "scoring": {
+    "threshold_warn": 50,
+    "threshold_block": 30,
+    "decay_rate": 0.95
+  },
+  "rules": {
+    "max_file_operations": 10,
+    "max_bash_commands": 5,
+    "require_documentation": true
+  },
+  "integrations": {
+    "claude_code": {
+      "hooks_enabled": true,
+      "session_tracking": true
+    }
+  }
+}
