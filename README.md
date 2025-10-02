@@ -1,4 +1,4 @@
-# WoW System v4.1.0
+# WoW System v4.2.0
 
 **Ways of Working Enforcement for Claude Code**
 
@@ -133,7 +133,7 @@ bash install.sh  # Will run self-tests
 
 Once installed, the WoW System operates transparently in the background:
 
-1. **Claude Code** prepares a tool call (Bash, Write, Edit)
+1. **Claude Code** prepares a tool call (Bash, Write, Edit, Read, Glob, Grep)
 2. **WoW Hook** intercepts the call before execution
 3. **Handler Router** routes to appropriate handler
 4. **Handler** validates and potentially modifies the call
@@ -159,6 +159,27 @@ Once installed, the WoW System operates transparently in the background:
 - ⛔ Blocks: Edits to system files
 - ⛔ Blocks: Dangerous replacements (security code removal)
 - ⚠️ Warns: Missing documentation, validation bypass
+
+#### Read Handler
+- ⛔ Blocks: Reads of `/etc/shadow`, `/etc/passwd`, private SSH keys
+- ⛔ Blocks: AWS/GCP credentials, cryptocurrency wallets
+- ⛔ Blocks: Path traversal to sensitive files
+- ⚠️ Warns: `.env` files, credential files, browser data
+- ⚠️ Warns: High read volume (potential data exfiltration)
+
+#### Glob Handler
+- ⛔ Blocks: Globbing in `/etc`, `/root`, `/sys`, `~/.ssh`, `~/.aws`
+- ⛔ Blocks: System security directories
+- ⚠️ Warns: Overly broad patterns (`/**/*`, `**/*`)
+- ⚠️ Warns: Credential file patterns (`**/.env`, `**/id_rsa`)
+- ⚠️ Warns: Wallet searches (`**/wallet.dat`)
+
+#### Grep Handler
+- ⛔ Blocks: Searches in `/etc`, `/root`, `/sys`, `~/.ssh`, `~/.aws`
+- ⛔ Blocks: Sensitive directory searches
+- ⚠️ Warns: Credential pattern searches (password, api_key, secret, token)
+- ⚠️ Warns: Private key pattern searches
+- ⚠️ Warns: PII pattern searches (SSN, credit card numbers)
 
 ### Scoring System
 
@@ -216,7 +237,16 @@ bash tests/test-write-handler.sh
 # Edit handler (24 tests)
 bash tests/test-edit-handler.sh
 
-# Total: 72 tests, 100% passing
+# Read handler (24 tests)
+bash tests/test-read-handler.sh
+
+# Glob handler (24 tests)
+bash tests/test-glob-handler.sh
+
+# Grep handler (24 tests)
+bash tests/test-grep-handler.sh
+
+# Total: 144 tests, 100% passing
 ```
 
 ### Test Coverage
@@ -354,12 +384,13 @@ session_info
 
 ## Roadmap
 
-- [ ] Additional handlers (Read, Glob, Grep)
+- [x] Additional handlers (Read, Glob, Grep) - **Completed v4.2.0**
 - [ ] Machine learning-based anomaly detection
 - [ ] Web dashboard for metrics visualization
 - [ ] Multi-session analytics
 - [ ] Team-based scoring and leaderboards
 - [ ] Custom rule DSL
+- [ ] Additional tool handlers (NotebookEdit, WebFetch, etc.)
 
 ---
 
@@ -394,6 +425,6 @@ For issues, questions, or feedback:
 - Check `install.sh` output for diagnostics
 - Run self-tests: `bash src/handlers/bash-handler.sh`
 
-**Version**: 4.1.0
+**Version**: 4.2.0
 **Last Updated**: 2025-10-02
 **Status**: Production Ready ✅

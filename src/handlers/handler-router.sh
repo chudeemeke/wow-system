@@ -118,6 +118,9 @@ handler_init() {
     handler_register "Bash" "${handler_dir}/bash-handler.sh"
     handler_register "Write" "${handler_dir}/write-handler.sh"
     handler_register "Edit" "${handler_dir}/edit-handler.sh"
+    handler_register "Read" "${handler_dir}/read-handler.sh"
+    handler_register "Glob" "${handler_dir}/glob-handler.sh"
+    handler_register "Grep" "${handler_dir}/grep-handler.sh"
 
     wow_debug "Handler router initialized with $(echo "${#_WOW_HANDLER_REGISTRY[@]}") handlers"
 }
