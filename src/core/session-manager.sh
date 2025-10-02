@@ -9,6 +9,12 @@
 # - Dependency Inversion: Depends on state/config abstractions
 # - Loose Coupling: Delegates to specialized components
 
+# Prevent double-sourcing
+if [[ -n "${WOW_SESSION_MANAGER_LOADED:-}" ]]; then
+    return 0
+fi
+readonly WOW_SESSION_MANAGER_LOADED=1
+
 # Source dependencies
 _SESSION_MGR_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${_SESSION_MGR_DIR}/utils.sh"

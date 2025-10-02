@@ -3,6 +3,12 @@
 # Provides: In-memory session state management with persistence
 # Author: Chude <chude@emeke.org>
 
+# Prevent double-sourcing
+if [[ -n "${WOW_STATE_MANAGER_LOADED:-}" ]]; then
+    return 0
+fi
+readonly WOW_STATE_MANAGER_LOADED=1
+
 # Source dependencies
 _STATE_MGR_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${_STATE_MGR_DIR}/utils.sh"

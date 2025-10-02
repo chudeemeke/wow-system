@@ -3,6 +3,12 @@
 # Provides: Key-value storage with namespaces, atomic writes, and error handling
 # Author: Chude <chude@emeke.org>
 
+# Prevent double-sourcing
+if [[ -n "${WOW_FILE_STORAGE_LOADED:-}" ]]; then
+    return 0
+fi
+readonly WOW_FILE_STORAGE_LOADED=1
+
 # Source utilities
 _FILE_STORAGE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${_FILE_STORAGE_DIR}/../core/utils.sh"

@@ -3,6 +3,12 @@
 # Provides: JSON configuration management with nested keys and validation
 # Author: Chude <chude@emeke.org>
 
+# Prevent double-sourcing
+if [[ -n "${WOW_CONFIG_LOADER_LOADED:-}" ]]; then
+    return 0
+fi
+readonly WOW_CONFIG_LOADER_LOADED=1
+
 # Source dependencies
 _CONFIG_LOADER_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${_CONFIG_LOADER_DIR}/utils.sh"
