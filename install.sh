@@ -16,7 +16,7 @@ C_RESET='\033[0m'
 echo -e "${C_BOLD}${C_CYAN}"
 cat <<'EOF'
 ╔══════════════════════════════════════╗
-║  WoW System Installation v4.1.0      ║
+║  WoW System Installation v4.2.0      ║
 ║  Ways of Working Enforcement         ║
 ╚══════════════════════════════════════╝
 EOF
@@ -144,6 +144,15 @@ bash "${WOW_INSTALL_DIR}/src/handlers/write-handler.sh" | grep -q "All self-test
 
 bash "${WOW_INSTALL_DIR}/src/handlers/edit-handler.sh" | grep -q "All self-tests passed" && \
     echo -e "${C_GREEN}✓ Edit handler${C_RESET}" || echo -e "${C_RED}✗ Edit handler${C_RESET}"
+
+bash "${WOW_INSTALL_DIR}/src/handlers/read-handler.sh" | grep -q "All self-tests passed" && \
+    echo -e "${C_GREEN}✓ Read handler${C_RESET}" || echo -e "${C_RED}✗ Read handler${C_RESET}"
+
+bash "${WOW_INSTALL_DIR}/src/handlers/glob-handler.sh" | grep -q "All self-tests passed" && \
+    echo -e "${C_GREEN}✓ Glob handler${C_RESET}" || echo -e "${C_RED}✗ Glob handler${C_RESET}"
+
+bash "${WOW_INSTALL_DIR}/src/handlers/grep-handler.sh" | grep -q "All self-tests passed" && \
+    echo -e "${C_GREEN}✓ Grep handler${C_RESET}" || echo -e "${C_RED}✗ Grep handler${C_RESET}"
 
 bash "${WOW_INSTALL_DIR}/src/engines/scoring-engine.sh" | grep -q "All tests passed" && \
     echo -e "${C_GREEN}✓ Scoring engine${C_RESET}" || echo -e "${C_RED}✗ Scoring engine${C_RESET}"
