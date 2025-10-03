@@ -100,6 +100,16 @@ wow_init() {
         config_load_defaults 2>/dev/null || true
     fi
 
+    # Load handlers (CRITICAL: needed for hook to work)
+    wow_load_handlers 2>/dev/null || {
+        wow_warn "Failed to load handlers" 2>/dev/null || true
+    }
+
+    # Initialize handlers
+    if type handler_init &>/dev/null; then
+        handler_init 2>/dev/null || true
+    fi
+
     # Mark as initialized
     _WOW_INITIALIZED=true
 
