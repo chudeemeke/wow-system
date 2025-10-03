@@ -19,13 +19,18 @@ readonly WOW_ORCHESTRATOR_LOADED=1
 # Constants
 # ============================================================================
 
-readonly ORCHESTRATOR_VERSION="1.0.0"
+readonly ORCHESTRATOR_VERSION="5.0.0"
 
 # Module registry (for dependency tracking)
 declare -gA _WOW_MODULES_LOADED
 
 # Initialization flag
 _WOW_INITIALIZED=false
+
+# v5.0 Pattern flags
+_WOW_DI_ENABLED=true
+_WOW_FACTORY_ENABLED=true
+_WOW_EVENTS_ENABLED=true
 
 # ============================================================================
 # Private: Module Loading
@@ -79,17 +84,69 @@ wow_init() {
     local module_dir
     module_dir=$(_get_module_dir)
 
+    # ========================================================================
+    # v5.0: Load Design Pattern modules FIRST
+    # ========================================================================
+    if [[ "${_WOW_DI_ENABLED}" == "true" ]]; then
+        _load_module "di-container" "${module_dir}/../patterns/di-container.sh" || {
+            wow_warn "Failed to load DI Container" 2>/dev/null || true
+            _WOW_DI_ENABLED=false
+        }
+    fi
+
+    if [[ "${_WOW_FACTORY_ENABLED}" == "true" ]]; then
+        _load_module "handler-factory" "${module_dir}/../factories/handler-factory.sh" || {
+            wow_warn "Failed to load Handler Factory" 2>/dev/null || true
+            _WOW_FACTORY_ENABLED=false
+        }
+    fi
+
+    if [[ "${_WOW_EVENTS_ENABLED}" == "true" ]]; then
+        _load_module "event-bus" "${module_dir}/../patterns/event-bus.sh" || {
+            wow_warn "Failed to load Event Bus" 2>/dev/null || true
+            _WOW_EVENTS_ENABLED=false
+        }
+    fi
+
+    # Initialize DI Container
+    if [[ "${_WOW_DI_ENABLED}" == "true" ]] && type di_init &>/dev/null; then
+        di_init 2>/dev/null || true
+    fi
+
+    # Initialize Event Bus
+    if [[ "${_WOW_EVENTS_ENABLED}" == "true" ]] && type event_bus_init &>/dev/null; then
+        event_bus_init 2>/dev/null || true
+        # Publish system_starting event
+        event_bus_publish "system_starting" "{}" 2>/dev/null || true
+    fi
+
+    # Initialize Handler Factory
+    if [[ "${_WOW_FACTORY_ENABLED}" == "true" ]] && type factory_init &>/dev/null; then
+        factory_init 2>/dev/null || true
+    fi
+
+    # ========================================================================
     # Load core modules (order matters - dependencies first)
+    # ========================================================================
     _load_module "utils" "${module_dir}/utils.sh" || return 1
     _load_module "storage" "${module_dir}/../storage/file-storage.sh" || return 1
     _load_module "state" "${module_dir}/state-manager.sh" || return 1
     _load_module "config" "${module_dir}/config-loader.sh" || return 1
     _load_module "session" "${module_dir}/session-manager.sh" || return 1
 
+    # ========================================================================
     # Initialize core components
+    # ========================================================================
     storage_init 2>/dev/null || true
     state_init 2>/dev/null || true
     config_init 2>/dev/null || true
+
+    # v5.0: Register core services in DI Container
+    if [[ "${_WOW_DI_ENABLED}" == "true" ]] && type di_register_singleton &>/dev/null; then
+        di_register_singleton "IStorageService" "storage_init" 2>/dev/null || true
+        di_register_singleton "IStateService" "state_init" 2>/dev/null || true
+        di_register_singleton "IConfigService" "config_init" 2>/dev/null || true
+    fi
 
     # Load configuration
     if [[ -n "${config_file}" ]] && [[ -f "${config_file}" ]]; then
@@ -100,7 +157,9 @@ wow_init() {
         config_load_defaults 2>/dev/null || true
     fi
 
+    # ========================================================================
     # Load handlers (CRITICAL: needed for hook to work)
+    # ========================================================================
     wow_load_handlers 2>/dev/null || {
         wow_warn "Failed to load handlers" 2>/dev/null || true
     }
@@ -110,8 +169,21 @@ wow_init() {
         handler_init 2>/dev/null || true
     fi
 
+    # v5.0: Auto-register handlers in Factory
+    if [[ "${_WOW_FACTORY_ENABLED}" == "true" ]] && type factory_auto_register &>/dev/null; then
+        local handler_dir="${module_dir}/../handlers"
+        factory_auto_register "$handler_dir" 2>/dev/null || true
+    fi
+
+    # ========================================================================
     # Mark as initialized
+    # ========================================================================
     _WOW_INITIALIZED=true
+
+    # v5.0: Publish system_initialized event
+    if [[ "${_WOW_EVENTS_ENABLED}" == "true" ]] && type event_bus_publish &>/dev/null; then
+        event_bus_publish "system_initialized" "{\"version\":\"5.0.0\"}" 2>/dev/null || true
+    fi
 
     return 0
 }
@@ -148,7 +220,7 @@ wow_is_initialized() {
 
 # Get WoW version
 wow_get_version() {
-    echo "${WOW_VERSION:-4.1.0}"
+    echo "${WOW_VERSION:-5.0.0}"
 }
 
 # Check if a specific module is available

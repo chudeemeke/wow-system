@@ -1,4 +1,4 @@
-# WoW System v4.3.0
+# WoW System v5.0.0
 
 **Ways of Working Enforcement for Claude Code**
 

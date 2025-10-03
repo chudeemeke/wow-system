@@ -1,0 +1,13 @@
+# WoW State - Session session_20251003_162902149080875_13410
+# Saved at 2025-10-03T15:29:02.174Z
+
+_session_id=c2Vzc2lvbl8yMDI1MTAwM18xNjI5MDIxNDkwODA4NzVfMTM0MTA=
+_started_at=MjAyNS0xMC0wM1QxNToyOTowMi4xMjda
+events:1_session_started=dGltZXN0YW1wPTIwMjUtMTAtMDNUMTU6Mjk6MDIuMTU4Wnx0eXBlPXNlc3Npb25fc3RhcnRlZHxkYXRhPVNlc3Npb24gaW5pdGlhbGl6ZWQ=
+events:2_session_ended=dGltZXN0YW1wPTIwMjUtMTAtMDNUMTU6Mjk6MDIuMTY4Wnx0eXBlPXNlc3Npb25fZW5kZWR8ZGF0YT1TZXNzaW9uIHRlcm1pbmF0ZWQ=
+metrics:event_count=Mg==
+metrics:session1_data=dmFsdWUx
+session:ended_at=MjAyNS0xMC0wM1QxNToyOTowMi4xNjRa
+session:started_at=MjAyNS0xMC0wM1QxNToyOTowMi4xNTJa
+session:status=ZW5kZWQ=
+session:version=MS4wLjA=

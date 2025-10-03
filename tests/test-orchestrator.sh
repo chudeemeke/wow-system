@@ -144,7 +144,7 @@ test_get_version() {
     local version
     version=$(wow_get_version)
 
-    assert_contains "${version}" "4.1" "Should return version number"
+    assert_contains "${version}" "5.0" "Should return version number"
 }
 test_case "Get WoW version" test_get_version
 
@@ -181,7 +181,7 @@ test_load_custom_config() {
     source_orchestrator || return 1
 
     local config_file="${TEST_DATA_DIR}/custom-config.json"
-    echo '{"version": "4.1.0", "custom_setting": "custom_value"}' > "${config_file}"
+    echo '{"version": "5.0.0", "custom_setting": "custom_value"}' > "${config_file}"
 
     wow_init "${config_file}"
 

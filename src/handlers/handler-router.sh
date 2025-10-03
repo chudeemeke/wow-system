@@ -24,7 +24,7 @@ set -uo pipefail
 # Constants
 # ============================================================================
 
-readonly ROUTER_VERSION="1.0.0"
+readonly ROUTER_VERSION="5.0.0"
 
 # Handler registry (tool_type => handler_path)
 declare -gA _WOW_HANDLER_REGISTRY
@@ -91,21 +91,30 @@ handler_route() {
     local handler_path
     handler_path=$(handler_get "${tool_type}")
 
-    # Source and execute handler
-    if [[ -f "${handler_path}" ]]; then
-        source "${handler_path}"
-
-        # Call handler function (convention: handle_<lowercase_tool>)
-        local handler_func="handle_${tool_type,,}"
-
-        if type "${handler_func}" &>/dev/null; then
-            "${handler_func}" "${tool_input}"
-        else
-            wow_warn "Handler function ${handler_func} not found"
+    # v5.0: Use Factory if available, otherwise direct sourcing
+    if type factory_create_handler &>/dev/null; then
+        # Factory pattern: Let factory handle sourcing and caching
+        factory_create_handler "${tool_type}" &>/dev/null || {
+            wow_warn "Factory failed to create handler for ${tool_type}"
             echo "${tool_input}"
-        fi
+            return 0
+        }
+    elif [[ -f "${handler_path}" ]]; then
+        # Fallback: Direct sourcing (backward compatibility)
+        source "${handler_path}"
     else
         wow_error "Handler file not found: ${handler_path}"
+        echo "${tool_input}"
+        return 0
+    fi
+
+    # Call handler function (convention: handle_<lowercase_tool>)
+    local handler_func="handle_${tool_type,,}"
+
+    if type "${handler_func}" &>/dev/null; then
+        "${handler_func}" "${tool_input}"
+    else
+        wow_warn "Handler function ${handler_func} not found"
         echo "${tool_input}"
     fi
 }
@@ -114,7 +123,7 @@ handler_route() {
 handler_init() {
     local handler_dir="${_HANDLER_ROUTER_DIR}"
 
-    # Register built-in handlers
+    # Register built-in handlers (local registry)
     handler_register "Bash" "${handler_dir}/bash-handler.sh"
     handler_register "Write" "${handler_dir}/write-handler.sh"
     handler_register "Edit" "${handler_dir}/edit-handler.sh"
@@ -123,6 +132,18 @@ handler_init() {
     handler_register "Grep" "${handler_dir}/grep-handler.sh"
     handler_register "Task" "${handler_dir}/task-handler.sh"
     handler_register "WebFetch" "${handler_dir}/webfetch-handler.sh"
+
+    # v5.0: Also register in Factory if available
+    if type factory_register_handler &>/dev/null; then
+        factory_register_handler "Bash" "${handler_dir}/bash-handler.sh"
+        factory_register_handler "Write" "${handler_dir}/write-handler.sh"
+        factory_register_handler "Edit" "${handler_dir}/edit-handler.sh"
+        factory_register_handler "Read" "${handler_dir}/read-handler.sh"
+        factory_register_handler "Glob" "${handler_dir}/glob-handler.sh"
+        factory_register_handler "Grep" "${handler_dir}/grep-handler.sh"
+        factory_register_handler "Task" "${handler_dir}/task-handler.sh"
+        factory_register_handler "WebFetch" "${handler_dir}/webfetch-handler.sh"
+    fi
 
     wow_debug "Handler router initialized with $(echo "${#_WOW_HANDLER_REGISTRY[@]}") handlers"
 }

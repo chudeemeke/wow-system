@@ -16,7 +16,7 @@ C_RESET='\033[0m'
 echo -e "${C_BOLD}${C_CYAN}"
 cat <<'EOF'
 ╔══════════════════════════════════════╗
-║  WoW System Installation v4.3.0      ║
+║  WoW System Installation v5.0.0      ║
 ║  Ways of Working Enforcement         ║
 ╚══════════════════════════════════════╝
 EOF
