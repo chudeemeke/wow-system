@@ -80,6 +80,34 @@ readonly -a DANGEROUS_REPLACEMENT_PATTERNS=(
 )
 
 # ============================================================================
+# Private: Enforcement Checks
+# ============================================================================
+
+# Check if file operations limit is exceeded
+_check_file_operations_limit() {
+    local max_operations
+    max_operations=$(config_get "rules.max_file_operations" "0" 2>/dev/null || echo "0")
+
+    # 0 = unlimited
+    if [[ "$max_operations" -eq 0 ]]; then
+        return 0  # No limit
+    fi
+
+    # Count both writes and edits as file operations
+    local writes edits total
+    writes=$(session_get_metric "file_writes" "0" 2>/dev/null || echo "0")
+    edits=$(session_get_metric "file_edits" "0" 2>/dev/null || echo "0")
+    total=$((writes + edits))
+
+    if [[ "$total" -ge "$max_operations" ]]; then
+        wow_error "LIMIT EXCEEDED: max_file_operations = $max_operations (current: $total)"
+        return 1  # Limit exceeded
+    fi
+
+    return 0  # Within limit
+}
+
+# ============================================================================
 # Private: Path Validation (Same as write handler)
 # ============================================================================
 
@@ -187,8 +215,14 @@ _validate_edit() {
         return 0
     fi
 
-    # Check for security code removal (warn but allow)
-    _is_security_code_removal "${old_string}" || true
+    # Check for security code removal (warn but allow, unless strict_mode)
+    if _is_security_code_removal "${old_string}"; then
+        # v5.0.1: strict_mode enforcement
+        if wow_should_block "warn"; then
+            wow_error "BLOCKED: Security code removal in strict mode"
+            return 1  # Invalid
+        fi
+    fi
 
     # Check for dangerous replacement (block)
     if _has_dangerous_replacement "${new_string}"; then
@@ -256,6 +290,15 @@ handle_edit() {
     session_track_event "file_edit" "path=${file_path:0:100}" 2>/dev/null || true
 
     # ========================================================================
+    # ENFORCEMENT CHECK: File Operations Limit
+    # ========================================================================
+
+    if ! _check_file_operations_limit; then
+        session_track_event "limit_exceeded" "file_operations" 2>/dev/null || true
+        return 2  # Block
+    fi
+
+    # ========================================================================
     # SECURITY CHECK: Path Validation
     # ========================================================================
 
@@ -289,11 +332,18 @@ handle_edit() {
     fi
 
     # ========================================================================
-    # WARNINGS: Non-blocking checks
+    # WARNINGS: Non-blocking checks (with v5.0.1 strict_mode enforcement)
     # ========================================================================
 
     # Warn if file doesn't exist
-    _check_file_exists "${file_path}" || true
+    if ! _check_file_exists "${file_path}"; then
+        # v5.0.1: strict_mode enforcement
+        if wow_should_block "warn"; then
+            wow_error "BLOCKED: Cannot edit non-existent file in strict mode"
+            session_track_event "security_violation" "BLOCKED_NONEXISTENT_FILE" 2>/dev/null || true
+            return 2
+        fi
+    fi
 
     # ========================================================================
     # ALLOW: Return (original) tool input

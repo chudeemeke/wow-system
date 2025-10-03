@@ -20,5 +20,11 @@
       "hooks_enabled": true,
       "session_tracking": true
     }
+  },
+  "_comments": {
+    "max_file_operations": "0 = unlimited, >0 = max operations per session (default: 10)",
+    "max_bash_commands": "0 = unlimited, >0 = max bash commands per session (default: 5)",
+    "strict_mode": "true = all warnings become blocks (fail-closed on ambiguity)",
+    "block_on_violation": "true = any violation is immediately blocked (most restrictive)"
   }
 }

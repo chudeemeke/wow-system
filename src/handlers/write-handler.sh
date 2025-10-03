@@ -77,6 +77,31 @@ readonly -a CREDENTIAL_PATTERNS=(
 )
 
 # ============================================================================
+# Private: Enforcement Checks
+# ============================================================================
+
+# Check if file operations limit is exceeded
+_check_file_operations_limit() {
+    local max_operations
+    max_operations=$(config_get "rules.max_file_operations" "0" 2>/dev/null || echo "0")
+
+    # 0 = unlimited
+    if [[ "$max_operations" -eq 0 ]]; then
+        return 0  # No limit
+    fi
+
+    local current_count
+    current_count=$(session_get_metric "file_writes" "0" 2>/dev/null || echo "0")
+
+    if [[ "$current_count" -ge "$max_operations" ]]; then
+        wow_error "LIMIT EXCEEDED: max_file_operations = $max_operations (current: $current_count)"
+        return 1  # Limit exceeded
+    fi
+
+    return 0  # Within limit
+}
+
+# ============================================================================
 # Private: Path Validation
 # ============================================================================
 
@@ -187,8 +212,14 @@ _validate_content() {
         return 1  # Invalid
     fi
 
-    # Check for credentials (warning only)
-    _has_credentials "${content}" || true
+    # Check for credentials (warning only, but respect strict_mode)
+    if _has_credentials "${content}"; then
+        # v5.0.1: strict_mode enforcement
+        if wow_should_block "warn"; then
+            wow_error "BLOCKED: Credential detected in strict mode"
+            return 1  # Invalid
+        fi
+    fi
 
     return 0  # Valid
 }
@@ -284,6 +315,15 @@ handle_write() {
     session_track_event "file_write" "path=${file_path:0:100}" 2>/dev/null || true
 
     # ========================================================================
+    # ENFORCEMENT CHECK: File Operations Limit
+    # ========================================================================
+
+    if ! _check_file_operations_limit; then
+        session_track_event "limit_exceeded" "file_operations" 2>/dev/null || true
+        return 2  # Block
+    fi
+
+    # ========================================================================
     # SECURITY CHECK: Path Validation
     # ========================================================================
 
@@ -320,14 +360,28 @@ handle_write() {
     fi
 
     # ========================================================================
-    # WARNINGS: Non-blocking checks
+    # WARNINGS: Non-blocking checks (with v5.0.1 strict_mode enforcement)
     # ========================================================================
 
     # Check for binary writes
-    _check_binary_write "${file_path}" "${content}" || true
+    if _check_binary_write "${file_path}" "${content}"; then
+        # v5.0.1: strict_mode enforcement
+        if wow_should_block "warn"; then
+            wow_error "BLOCKED: Binary file write in strict mode"
+            session_track_event "security_violation" "BLOCKED_BINARY_WRITE" 2>/dev/null || true
+            return 2
+        fi
+    fi
 
     # Check for documentation
-    _has_proper_header "${content}" "${file_path}" || true
+    if ! _has_proper_header "${content}" "${file_path}"; then
+        # v5.0.1: strict_mode enforcement
+        if wow_should_block "warn"; then
+            wow_error "BLOCKED: Missing documentation in strict mode"
+            session_track_event "security_violation" "BLOCKED_MISSING_DOCS" 2>/dev/null || true
+            return 2
+        fi
+    fi
 
     # ========================================================================
     # ALLOW: Return (original) tool input

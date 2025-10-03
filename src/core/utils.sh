@@ -360,6 +360,64 @@ wow_array_join() {
 }
 
 # ============================================================================
+# Enforcement Utilities
+# ============================================================================
+
+# Check if enforcement is enabled globally
+wow_enforcement_enabled() {
+    local enabled
+    enabled=$(config_get "enforcement.enabled" "true" 2>/dev/null || echo "true")
+    [[ "${enabled}" == "true" ]]
+}
+
+# Check if strict mode is enabled
+wow_strict_mode_enabled() {
+    local strict
+    strict=$(config_get "enforcement.strict_mode" "false" 2>/dev/null || echo "false")
+    [[ "${strict}" == "true" ]]
+}
+
+# Check if block_on_violation is enabled
+wow_block_on_violation_enabled() {
+    local block
+    block=$(config_get "enforcement.block_on_violation" "false" 2>/dev/null || echo "false")
+    [[ "${block}" == "true" ]]
+}
+
+# Determine if should block based on severity and config
+# Usage: wow_should_block "warn|error|block"
+# Returns: 0 (should block) or 1 (should allow)
+wow_should_block() {
+    local severity="$1"  # warn, error, block
+
+    # Check if enforcement is globally disabled
+    if ! wow_enforcement_enabled; then
+        return 1  # Don't block
+    fi
+
+    # block_on_violation: any violation becomes a block
+    if wow_block_on_violation_enabled; then
+        if [[ "${severity}" == "warn" ]] || [[ "${severity}" == "error" ]] || [[ "${severity}" == "block" ]]; then
+            return 0  # Block
+        fi
+    fi
+
+    # strict_mode: warnings become blocks
+    if wow_strict_mode_enabled; then
+        if [[ "${severity}" == "warn" ]] || [[ "${severity}" == "error" ]] || [[ "${severity}" == "block" ]]; then
+            return 0  # Block
+        fi
+    fi
+
+    # Default behavior: only block on explicit "block" or "error"
+    if [[ "${severity}" == "block" ]] || [[ "${severity}" == "error" ]]; then
+        return 0  # Block
+    fi
+
+    return 1  # Allow (for "warn")
+}
+
+# ============================================================================
 # Initialization
 # ============================================================================
 

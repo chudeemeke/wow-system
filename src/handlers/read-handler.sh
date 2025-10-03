@@ -311,10 +311,24 @@ handle_read() {
     # ========================================================================
 
     # Warn on credential files (but allow)
-    _is_credential_file "${file_path}" || true
+    if _is_credential_file "${file_path}"; then
+        # v5.0.1: strict_mode enforcement
+        if wow_should_block "warn"; then
+            wow_error "BLOCKED: .env/credential file read in strict mode"
+            session_track_event "security_violation" "BLOCKED_ENV_READ" 2>/dev/null || true
+            return 2
+        fi
+    fi
 
     # Warn on browser data (but allow)
-    _is_browser_data "${file_path}" || true
+    if _is_browser_data "${file_path}"; then
+        # v5.0.1: strict_mode enforcement
+        if wow_should_block "warn"; then
+            wow_error "BLOCKED: Browser data read in strict mode"
+            session_track_event "security_violation" "BLOCKED_BROWSER_READ" 2>/dev/null || true
+            return 2
+        fi
+    fi
 
     # Track database reads
     if _is_database_file "${file_path}"; then
@@ -322,7 +336,14 @@ handle_read() {
     fi
 
     # Check read rate (anti-exfiltration)
-    _check_read_rate || true
+    if _check_read_rate; then
+        # v5.0.1: strict_mode enforcement
+        if wow_should_block "warn"; then
+            wow_error "BLOCKED: High read volume in strict mode (anti-exfiltration)"
+            session_track_event "security_violation" "BLOCKED_HIGH_READ_VOLUME" 2>/dev/null || true
+            return 2
+        fi
+    fi
 
     # ========================================================================
     # ALLOW: Return (original) tool input

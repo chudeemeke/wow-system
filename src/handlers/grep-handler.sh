@@ -261,11 +261,35 @@ handle_grep() {
     # WARNINGS: Pattern Validation (non-blocking)
     # ========================================================================
 
-    # Validate pattern (warnings only)
-    _validate_pattern "${pattern}" || true
+    # Check for credential searches
+    if _is_credential_search "${pattern}"; then
+        # v5.0.1: strict_mode enforcement
+        if wow_should_block "warn"; then
+            wow_error "BLOCKED: Credential pattern search in strict mode"
+            session_track_event "security_violation" "BLOCKED_CREDENTIAL_GREP" 2>/dev/null || true
+            return 2
+        fi
+    fi
+
+    # Check for PII searches
+    if _is_pii_search "${pattern}"; then
+        # v5.0.1: strict_mode enforcement
+        if wow_should_block "warn"; then
+            wow_error "BLOCKED: PII pattern search in strict mode"
+            session_track_event "security_violation" "BLOCKED_PII_GREP" 2>/dev/null || true
+            return 2
+        fi
+    fi
 
     # Check for path traversal
-    _has_path_traversal "${path}" || true
+    if _has_path_traversal "${path}"; then
+        # v5.0.1: strict_mode enforcement
+        if wow_should_block "warn"; then
+            wow_error "BLOCKED: Path traversal in grep path in strict mode"
+            session_track_event "security_violation" "BLOCKED_GREP_TRAVERSAL" 2>/dev/null || true
+            return 2
+        fi
+    fi
 
     # ========================================================================
     # ALLOW: Return (original) tool input

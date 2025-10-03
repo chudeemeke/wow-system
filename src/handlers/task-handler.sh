@@ -221,11 +221,50 @@ _validate_prompt() {
     fi
 
     # Check for dangerous patterns (warn but allow - other handlers will block)
-    _has_dangerous_pattern "${prompt}" || true
-    _is_credential_harvest "${prompt}" || true
-    _is_exfiltration_attempt "${prompt}" || true
-    _is_network_abuse "${prompt}" || true
-    _is_system_modification "${prompt}" || true
+    # v5.0.1: strict_mode enforcement
+    if _has_dangerous_pattern "${prompt}"; then
+        if wow_should_block "warn"; then
+            wow_error "BLOCKED by strict_mode or block_on_violation: Dangerous task pattern"
+            session_track_event "security_violation" "BLOCKED_DANGEROUS_TASK_PATTERN" 2>/dev/null || true
+            return 2
+        fi
+    fi
+
+    # v5.0.1: strict_mode enforcement
+    if _is_credential_harvest "${prompt}"; then
+        if wow_should_block "warn"; then
+            wow_error "BLOCKED by strict_mode or block_on_violation: Credential harvesting task"
+            session_track_event "security_violation" "BLOCKED_CREDENTIAL_HARVEST_TASK" 2>/dev/null || true
+            return 2
+        fi
+    fi
+
+    # v5.0.1: strict_mode enforcement
+    if _is_exfiltration_attempt "${prompt}"; then
+        if wow_should_block "warn"; then
+            wow_error "BLOCKED by strict_mode or block_on_violation: Data exfiltration task"
+            session_track_event "security_violation" "BLOCKED_EXFILTRATION_TASK" 2>/dev/null || true
+            return 2
+        fi
+    fi
+
+    # v5.0.1: strict_mode enforcement
+    if _is_network_abuse "${prompt}"; then
+        if wow_should_block "warn"; then
+            wow_error "BLOCKED by strict_mode or block_on_violation: Network abuse task"
+            session_track_event "security_violation" "BLOCKED_NETWORK_ABUSE_TASK" 2>/dev/null || true
+            return 2
+        fi
+    fi
+
+    # v5.0.1: strict_mode enforcement
+    if _is_system_modification "${prompt}"; then
+        if wow_should_block "warn"; then
+            wow_error "BLOCKED by strict_mode or block_on_violation: System modification task"
+            session_track_event "security_violation" "BLOCKED_SYSTEM_MODIFICATION_TASK" 2>/dev/null || true
+            return 2
+        fi
+    fi
 
     return 0  # Valid (warnings issued but not blocked here)
 }

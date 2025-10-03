@@ -70,6 +70,31 @@ readonly AUTHOR_EMAIL="chude@emeke.org"
 readonly AUTHOR_FULL="Chude <chude@emeke.org>"
 
 # ============================================================================
+# Private: Enforcement Checks
+# ============================================================================
+
+# Check if bash command limit is exceeded
+_check_bash_command_limit() {
+    local max_commands
+    max_commands=$(config_get "rules.max_bash_commands" "0" 2>/dev/null || echo "0")
+
+    # 0 = unlimited
+    if [[ "$max_commands" -eq 0 ]]; then
+        return 0  # No limit
+    fi
+
+    local current_count
+    current_count=$(session_get_metric "bash_commands" "0" 2>/dev/null || echo "0")
+
+    if [[ "$current_count" -ge "$max_commands" ]]; then
+        wow_error "LIMIT EXCEEDED: max_bash_commands = $max_commands (current: $current_count)"
+        return 1  # Limit exceeded
+    fi
+
+    return 0  # Within limit
+}
+
+# ============================================================================
 # Private: Security Checks
 # ============================================================================
 
@@ -194,6 +219,15 @@ handle_bash() {
     # Track metrics
     session_increment_metric "bash_commands" 2>/dev/null || true
     session_track_event "bash_command" "command=${command:0:100}" 2>/dev/null || true
+
+    # ========================================================================
+    # ENFORCEMENT CHECK: Command Limit
+    # ========================================================================
+
+    if ! _check_bash_command_limit; then
+        session_track_event "limit_exceeded" "bash_commands" 2>/dev/null || true
+        return 2  # Block
+    fi
 
     # ========================================================================
     # SECURITY CHECK: Dangerous Command Detection

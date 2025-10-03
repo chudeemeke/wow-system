@@ -338,11 +338,23 @@ _validate_url() {
     # Check for exfiltration domains (warn but allow)
     _is_exfiltration_domain "${domain}" || true
 
-    # Check for URL shorteners (warn but allow)
-    _is_url_shortener "${domain}" || true
+    # v5.0.1: strict_mode enforcement - URL shorteners
+    if _is_url_shortener "${domain}"; then
+        if wow_should_block "warn"; then
+            wow_error "BLOCKED by strict_mode or block_on_violation: URL shortener"
+            session_track_event "security_violation" "BLOCKED_URL_SHORTENER:${domain}" 2>/dev/null || true
+            return 1  # Invalid - blocked by strict_mode
+        fi
+    fi
 
-    # Check for suspicious TLDs (warn but allow)
-    _has_suspicious_tld "${domain}" || true
+    # v5.0.1: strict_mode enforcement - Suspicious TLDs
+    if _has_suspicious_tld "${domain}"; then
+        if wow_should_block "warn"; then
+            wow_error "BLOCKED by strict_mode or block_on_violation: Suspicious TLD"
+            session_track_event "security_violation" "BLOCKED_SUSPICIOUS_TLD:${domain}" 2>/dev/null || true
+            return 1  # Invalid - blocked by strict_mode
+        fi
+    fi
 
     # Warn if IP-based URL (not localhost/private)
     if _is_ip_address "${domain}"; then

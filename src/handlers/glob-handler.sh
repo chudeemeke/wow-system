@@ -284,11 +284,35 @@ handle_glob() {
     # WARNINGS: Pattern Validation (non-blocking)
     # ========================================================================
 
-    # Validate pattern (warnings only)
-    _validate_pattern "${pattern}" "${path}" || true
+    # Check for overly broad patterns
+    if _is_overly_broad_pattern "${pattern}" "${path}"; then
+        # v5.0.1: strict_mode enforcement
+        if wow_should_block "warn"; then
+            wow_error "BLOCKED: Overly broad glob pattern in strict mode"
+            session_track_event "security_violation" "BLOCKED_BROAD_GLOB" 2>/dev/null || true
+            return 2
+        fi
+    fi
+
+    # Check for credential searches
+    if _is_credential_search "${pattern}"; then
+        # v5.0.1: strict_mode enforcement
+        if wow_should_block "warn"; then
+            wow_error "BLOCKED: Credential search pattern in strict mode"
+            session_track_event "security_violation" "BLOCKED_CREDENTIAL_GLOB" 2>/dev/null || true
+            return 2
+        fi
+    fi
 
     # Check for path traversal
-    _has_path_traversal "${pattern}" "${path}" || true
+    if _has_path_traversal "${pattern}" "${path}"; then
+        # v5.0.1: strict_mode enforcement
+        if wow_should_block "warn"; then
+            wow_error "BLOCKED: Path traversal in glob pattern in strict mode"
+            session_track_event "security_violation" "BLOCKED_GLOB_TRAVERSAL" 2>/dev/null || true
+            return 2
+        fi
+    fi
 
     # ========================================================================
     # ALLOW: Return (original) tool input
