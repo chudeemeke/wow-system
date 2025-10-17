@@ -19,6 +19,7 @@ readonly WOW_WRITE_HANDLER_LOADED=1
 # Source dependencies
 _WRITE_HANDLER_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${_WRITE_HANDLER_DIR}/../core/utils.sh"
+source "${_WRITE_HANDLER_DIR}/../core/version-detector.sh" 2>/dev/null || true
 
 set -uo pipefail
 
@@ -381,6 +382,15 @@ handle_write() {
             session_track_event "security_violation" "BLOCKED_MISSING_DOCS" 2>/dev/null || true
             return 2
         fi
+    fi
+
+    # ========================================================================
+    # VERSION DETECTION: Check if this is a version file
+    # ========================================================================
+
+    # Detect version file changes and trigger documentation updates
+    if command -v version_detect_file_change &>/dev/null; then
+        version_detect_file_change "${file_path}" 2>/dev/null || true
     fi
 
     # ========================================================================

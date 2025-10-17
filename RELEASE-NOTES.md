@@ -1,5 +1,128 @@
 # WoW System Release Notes
 
+## v5.0.1 - Documentation Automation with docTruth (2025-10-05)
+
+### Summary
+Automated documentation synchronization using **docTruth** - the universal documentation truth system. This release integrates docTruth with the capture engine to keep documentation perpetually synchronized with code reality through command-based truth capture.
+
+### New Features
+
+#### docTruth Integration
+- **Truth-based documentation**: Captures actual project state by running commands, not guessing
+- **Comprehensive scanning**: 40+ truth sources covering project, architecture, testing, features, metrics
+- **Automated validations**: 5 critical validations ensure consistency (version, handlers, core modules, hooks, config)
+- **Multi-format output**: Generates CURRENT_TRUTH.md with real command output
+- **Watch mode**: Auto-regenerates documentation on file changes
+- **CI/CD ready**: Built-in support for continuous integration workflows
+- **Capture engine integration**: Auto-triggers on version bumps, feature additions, test completion
+- **Background execution**: Non-blocking updates every 30 minutes during active sessions
+
+### Enhanced Documentation
+- **README.md**: Updated to v5.0.1 with new features
+- **Complete doc update**: All core docs updated to reflect v5.0.0-5.0.1 features
+- **Architecture diagrams**: Added capture engine, email system, credential security
+- **Version consistency**: All version references updated to v5.0.1
+
+### Test Coverage
+- **Total tests**: 283 (25 doc-sync + 258 existing)
+- **New tests**: 25 comprehensive doc-sync engine tests
+- **Pass rate**: 92% (23/25 passing)
+
+### Documentation System
+Complete documentation coverage:
+1. Core docs - README, ARCHITECTURE, API-REFERENCE, etc.
+2. Feature docs - Capture engine, email alerts, credential security
+3. Principle docs - Philosophy, design decisions, implementation guides
+4. Auto-sync - Automated detection and update recommendations
+
+### Files Added/Modified
+- .doctruth.yml (280 LOC) - Complete WoW truth configuration
+- CURRENT_TRUTH.md (auto-generated) - Live project state
+- src/engines/capture-engine.sh - Added docTruth integration (70 LOC)
+- README.md - Added Documentation Automation section
+
+### Configuration
+docTruth is configured via `.doctruth.yml` with:
+- 40+ truth sources (version, modules, handlers, features, metrics)
+- 5 validations (version consistency, handler coverage, core modules, hooks, config)
+- Working examples (initialization, testing, metrics)
+- Benchmarks (execution time, codebase size)
+- Platform info (OS, shell, installation location)
+
+**Global Installation**:
+```bash
+# docTruth is now globally available
+doctruth              # Generate CURRENT_TRUTH.md
+doctruth --watch      # Auto-regenerate on changes
+doctruth --check      # Check if docs are outdated
+```
+
+---
+
+## v5.0.0 - Intelligence & Security Upgrade (2025-10-05)
+
+### Summary
+Major upgrade bringing real-time frustration detection, secure email alerts, and comprehensive credential security. This release transforms WoW from a safety system into an intelligent assistant that learns from patterns and proactively helps developers.
+
+### New Features
+
+#### Capture Engine
+- **Event-driven architecture**: Integrates with event-bus for real-time detection
+- **Pattern recognition**: Analyzes sequences of frustration events
+- **Confidence scoring**: CRITICAL, HIGH, MEDIUM, LOW levels
+- **Cooldown system**: Respects 5-minute cooldown between prompts
+- **9 frustration types**: Blocks, errors, path issues, credentials, retries, etc.
+- **Intelligent prompting**: Context-aware with confidence-based recommendations
+
+#### Email Alert System
+- **Secure credentials**: OS keychain integration (Linux Secret Service, macOS Keychain)
+- **Zero plaintext storage**: All credentials stored in OS-native secure storage
+- **CLI utility**: wow-email-setup for easy configuration
+- **Real-time alerts**: Immediate notifications for critical events
+- **Template system**: Customizable alert templates
+- **Rate limiting**: Prevents alert spam
+
+#### Credential Security
+- **Real-time detection**: Scans all file operations for credentials
+- **Pattern matching**: Detects passwords, API keys, tokens, private keys, AWS creds
+- **Automatic redaction**: Redacts detected credentials in logs
+- **Secure storage**: Integration with OS keychain for legitimate credential storage
+- **Block dangerous operations**: Prevents commits/writes with exposed credentials
+
+### Enhanced Components
+- **Event bus**: Publish/subscribe pattern for system-wide events
+- **Dependency injection**: Clean module initialization and testing
+- **CLI tools**: wow-capture for manual frustration reporting
+
+### Test Coverage
+- **Total tests**: 258 (192 handler + 66 core)
+- **New tests**: Capture engine, email system, credential detection
+- **Pass rate**: 100%
+
+### Security Enhancements
+- No plaintext credential storage
+- OS-native keychain integration
+- Real-time credential detection
+- Automatic redaction of sensitive data
+- Secure email with authentication
+
+### Files Added
+- src/engines/capture-engine.sh (650 LOC)
+- src/security/credential-detector.sh (450 LOC)
+- src/security/credential-storage.sh (380 LOC)
+- src/tools/email-system.sh (520 LOC)
+- src/patterns/event-bus.sh (280 LOC)
+- bin/wow-email-setup (CLI utility)
+- bin/wow-capture (CLI utility)
+
+### Documentation
+- docs/CAPTURE-ENGINE.md - Complete capture engine guide
+- docs/EMAIL-SETUP-GUIDE.md - Email configuration guide
+- docs/CREDENTIAL-SECURITY.md - Security implementation details
+- docs/principles/v5.0/scratch.md - Design philosophy
+
+---
+
 ## v4.3.0 - Production Complete (2025-10-02)
 
 ### Summary

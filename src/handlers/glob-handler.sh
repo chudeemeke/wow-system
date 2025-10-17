@@ -19,6 +19,7 @@ readonly WOW_GLOB_HANDLER_LOADED=1
 # Source dependencies
 _GLOB_HANDLER_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${_GLOB_HANDLER_DIR}/../core/utils.sh"
+source "${_GLOB_HANDLER_DIR}/../core/fast-path-validator.sh"
 
 set -uo pipefail
 
@@ -254,13 +255,57 @@ handle_glob() {
         return 0
     fi
 
+    # ========================================================================
+    # FAST PATH CHECK: Early exit for obviously safe patterns (v5.1.0)
+    # ========================================================================
+    # Glob operations are pattern-based, so we validate the target path
+
+    if [[ -n "${path}" ]]; then
+        local fast_path_result
+        fast_path_validate "${path}" "glob"
+        fast_path_result=$?
+
+        case ${fast_path_result} in
+            0)  # ALLOW - safe path, check pattern too
+                # Path is safe, still validate pattern isn't credential search
+                if ! _is_credential_search "${pattern}"; then
+                    session_increment_metric "glob_operations" 2>/dev/null || true
+                    session_increment_metric "fast_path_allows" 2>/dev/null || true
+                    wow_debug "Fast path ALLOW: glob pattern=${pattern} path=${path}"
+                    echo "${tool_input}"
+                    return 0
+                fi
+                # Credential search - fall through to deep validation
+                ;;
+            2)  # BLOCK - dangerous path
+                wow_error "Fast path BLOCKED: glob in dangerous path ${path}"
+                session_track_event "security_violation" "FAST_PATH_GLOB_BLOCK:${path:0:100}" 2>/dev/null || true
+                session_increment_metric "violations" 2>/dev/null || true
+                session_increment_metric "fast_path_blocks" 2>/dev/null || true
+
+                # Update score
+                local current_score
+                current_score=$(session_get_metric "wow_score" "70")
+                session_update_metric "wow_score" "$((current_score - 10))" 2>/dev/null || true
+
+                return 2
+                ;;
+            1)  # CONTINUE - needs deep validation
+                wow_debug "Fast path CONTINUE: glob path needs deep check"
+                session_increment_metric "fast_path_continues" 2>/dev/null || true
+                # Fall through to existing validation
+                ;;
+        esac
+    fi
+
     # Track metrics
     session_increment_metric "glob_operations" 2>/dev/null || true
     session_track_event "glob_operation" "pattern=${pattern:0:50}" 2>/dev/null || true
 
     # ========================================================================
-    # SECURITY CHECK: Protected Directory Validation
+    # SECURITY CHECK: Deep Protected Directory Validation
     # ========================================================================
+    # Only reached if fast path returned 1 or path not provided
 
     if _is_protected_directory "${path}"; then
         wow_error "☠️  DANGEROUS GLOB OPERATION BLOCKED"

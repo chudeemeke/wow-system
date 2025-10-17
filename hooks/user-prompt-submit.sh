@@ -19,6 +19,11 @@ set -uo pipefail
 # Environment Setup
 # ============================================================================
 
+# Optional debug logging (enable via WOW_DEBUG=1)
+if [[ "${WOW_DEBUG:-0}" == "1" ]]; then
+    echo "[$(date -Iseconds)] WoW Hook: Invoked (PID=$$)" >> "${WOW_DEBUG_LOG:-/tmp/wow-debug.log}" 2>&1 || true
+fi
+
 # Determine WoW system location
 if [[ -n "${WOW_HOME:-}" ]]; then
     WOW_SYSTEM_DIR="${WOW_HOME}"
@@ -49,30 +54,47 @@ source "${WOW_SYSTEM_DIR}/src/core/orchestrator.sh" 2>/dev/null || {
 # ============================================================================
 
 main() {
-    # Read tool call JSON from stdin
-    local tool_input
-    tool_input=$(cat)
+    # Read tool call JSON from stdin (official Claude Code format)
+    local hook_input
+    hook_input=$(cat)
 
     # Initialize WoW system (if not already initialized)
     if ! wow_is_initialized 2>/dev/null; then
         wow_init 2>/dev/null || {
-            echo "WARN: WoW initialization failed, bypassing" >&2
-            echo "${tool_input}"
+            echo "WARN: WoW initialization failed, allowing operation" >&2
+            echo '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"allow","permissionDecisionReason":"WoW initialization failed"}}' | jq -c
             exit 0
         }
     fi
 
-    # Extract tool type
+    # Extract tool information from Claude Code PreToolUse format
     local tool_type=""
+    local handler_input=""
+
     if wow_has_jq; then
-        tool_type=$(echo "${tool_input}" | jq -r '.tool // .name // empty' 2>/dev/null)
+        # Extract tool_name and tool_input from official PreToolUse format
+        tool_type=$(echo "${hook_input}" | jq -r '.tool_name // empty' 2>/dev/null)
+
+        if [[ -n "${tool_type}" ]]; then
+            # Reconstruct handler-compatible JSON from tool_input
+            # Handlers expect: {"tool":"Bash","command":"..."}
+            local tool_params
+            tool_params=$(echo "${hook_input}" | jq -r '.tool_input // {}' 2>/dev/null)
+            handler_input=$(jq -n --arg tool "${tool_type}" --argjson params "${tool_params}" '$params + {tool: $tool}')
+        else
+            # No tool_name found, allow by default
+            echo '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"allow","permissionDecisionReason":"No tool_name in input"}}' | jq -c
+            exit 0
+        fi
     else
-        tool_type=$(echo "${tool_input}" | grep -oP '"tool"\s*:\s*"\K[^"]+' 2>/dev/null || echo "")
+        # No jq available, allow by default
+        echo '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"allow","permissionDecisionReason":"jq not available"}}' | jq -c
+        exit 0
     fi
 
-    # If no tool type, pass through
+    # If no tool type, allow by default
     if [[ -z "${tool_type}" ]]; then
-        echo "${tool_input}"
+        echo '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"allow","permissionDecisionReason":"No tool type found"}}' | jq -c
         exit 0
     fi
 
@@ -83,9 +105,9 @@ main() {
     # Route through handler (if handler exists for this tool type)
     local output
     if type handler_route &>/dev/null; then
-        output=$(handler_route "${tool_input}" 2>&1) && local handler_result=$? || local handler_result=$?
+        output=$(handler_route "${handler_input}" 2>&1) && local handler_result=$? || local handler_result=$?
 
-        # Check handler result
+        # Check handler result and return hookSpecificOutput
         if [[ ${handler_result} -eq 2 ]]; then
             # Handler blocked the operation
             wow_error "WoW System: Operation blocked by handler" >&2
@@ -95,21 +117,23 @@ main() {
                 display_alert "error" "Operation Blocked" "WoW System prevented a dangerous operation" >&2
             fi
 
-            # Exit non-zero to block in Claude Code
-            exit 1
+            # Return deny decision with reason
+            local reason="WoW System blocked this operation as potentially dangerous"
+            echo "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"${reason}\"}}" | jq -c
+            exit 0
         elif [[ ${handler_result} -eq 0 ]]; then
-            # Handler allowed (possibly modified)
-            echo "${output}"
+            # Handler allowed
+            echo '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"allow","permissionDecisionReason":"WoW System validated operation"}}' | jq -c
             exit 0
         else
-            # Handler error - pass through original
-            wow_warn "WoW System: Handler error, allowing original operation" >&2
-            echo "${tool_input}"
+            # Handler error - allow by default (fail open for safety)
+            wow_warn "WoW System: Handler error, allowing operation" >&2
+            echo '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"allow","permissionDecisionReason":"Handler error, failing open"}}' | jq -c
             exit 0
         fi
     else
-        # No handler router available - pass through
-        echo "${tool_input}"
+        # No handler router available - allow by default
+        echo '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"allow","permissionDecisionReason":"No handler router available"}}' | jq -c
         exit 0
     fi
 }

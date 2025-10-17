@@ -1,8 +1,8 @@
-# WoW System v5.0.0
+# WoW System v5.0.1
 
 **Ways of Working Enforcement for Claude Code**
 
-Production-grade safety and behavior enforcement system that integrates with Claude Code to prevent dangerous operations, enforce best practices, and track quality metrics.
+Production-grade safety and behavior enforcement system that integrates with Claude Code to prevent dangerous operations, enforce best practices, and track quality metrics. Now with real-time frustration detection, secure email alerts, and automated credential security.
 
 ---
 
@@ -19,6 +19,10 @@ The WoW (Ways of Working) System is a comprehensive security and quality enforce
 - 📈 **Metrics Tracking**: Comprehensive session statistics and trend analysis
 - 🎨 **Visual Feedback**: Color-coded alerts and progress indicators
 - ⚙️ **Configurable**: Customizable rules and thresholds
+- 🎤 **Capture Engine**: Real-time frustration detection with intelligent pattern analysis
+- 📧 **Email Alerts**: Secure email notifications with OS keychain credential storage
+- 🔐 **Credential Security**: Real-time credential detection, redaction, and secure storage
+- 📚 **Documentation Automation**: Powered by docTruth - keeps documentation perpetually synchronized with code reality
 
 ---
 
@@ -45,7 +49,16 @@ wow-system/
 │   │
 │   ├── engines/           # Analysis & scoring
 │   │   ├── scoring-engine.sh  # Behavioral scoring
-│   │   └── risk-assessor.sh   # Multi-factor risk analysis
+│   │   ├── risk-assessor.sh   # Multi-factor risk analysis
+│   │   └── capture-engine.sh  # Frustration detection & doc automation
+│   │
+│   ├── security/          # Credential protection
+│   │   ├── credential-detector.sh  # Real-time credential detection
+│   │   └── credential-storage.sh   # Secure OS keychain integration
+│   │
+│   ├── tools/             # CLI utilities
+│   │   ├── email-system.sh    # Secure email alerts
+│   │   └── wow-capture.sh     # Manual frustration capture
 │   │
 │   └── ui/                # User interface
 │       └── display.sh         # Banners, feedback, metrics
@@ -240,6 +253,36 @@ Edit `config/wow-config.json`:
 }
 ```
 
+### Documentation Automation
+
+WoW uses **docTruth** for automated documentation synchronization. docTruth captures the "truth" about your codebase by running commands and generating CURRENT_TRUTH.md.
+
+**Features**:
+- Auto-generates documentation from actual code state
+- Runs validations to ensure accuracy
+- Tracks metrics (LOC, test coverage, module count)
+- Updates automatically on significant events
+
+**Manual Update**:
+```bash
+# Generate/update CURRENT_TRUTH.md
+doctruth
+
+# Watch mode (auto-regenerate on file changes)
+doctruth --watch
+
+# Check if documentation is outdated
+doctruth --check
+```
+
+**Automatic Updates**: The capture engine triggers docTruth on:
+- Version bumps
+- Feature additions
+- Test suite completion
+- Every 30 minutes during active sessions
+
+**Configuration**: Edit `.doctruth.yml` to customize what gets documented.
+
 ---
 
 ## Testing
@@ -411,6 +454,10 @@ session_info
 
 - [x] Additional handlers (Read, Glob, Grep) - **Completed v4.2.0**
 - [x] High-priority handlers (Task, WebFetch) - **Completed v4.3.0**
+- [x] Capture Engine with frustration detection - **Completed v5.0.0**
+- [x] Email alerts with secure credential storage - **Completed v5.0.0**
+- [x] Real-time credential detection and redaction - **Completed v5.0.0**
+- [x] Documentation sync engine - **Completed v5.0.1**
 - [ ] Medium-priority handlers (NotebookEdit, WebSearch)
 - [ ] Machine learning-based anomaly detection
 - [ ] Web dashboard for metrics visualization
@@ -451,6 +498,6 @@ For issues, questions, or feedback:
 - Check `install.sh` output for diagnostics
 - Run self-tests: `bash src/handlers/bash-handler.sh`
 
-**Version**: 4.3.0
-**Last Updated**: 2025-10-02
+**Version**: 5.0.1
+**Last Updated**: 2025-10-05
 **Status**: Production Ready ✅

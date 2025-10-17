@@ -1,0 +1,486 @@
+#!/bin/bash
+# WoW System - Email Setup Wizard
+# Interactive setup for secure email alerts
+# Author: Chude <chude@emeke.org>
+
+set -euo pipefail
+
+# ============================================================================
+# Setup Script Configuration
+# ============================================================================
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+WOW_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+# Source core utilities
+if [[ -f "$WOW_ROOT/src/core/utils.sh" ]]; then
+    source "$WOW_ROOT/src/core/utils.sh"
+else
+    echo "ERROR: Cannot find WoW utilities"
+    exit 1
+fi
+
+# Source config loader
+if [[ -f "$WOW_ROOT/src/core/config-loader.sh" ]]; then
+    source "$WOW_ROOT/src/core/config-loader.sh"
+else
+    wow_fatal "Cannot find config loader"
+fi
+
+# ============================================================================
+# Helper Functions
+# ============================================================================
+
+# Print banner
+print_banner() {
+    echo ""
+    echo "╔════════════════════════════════════════════════════════════════╗"
+    echo "║         WoW System - Email Alert Setup Wizard                 ║"
+    echo "║                   Secure Configuration                         ║"
+    echo "╚════════════════════════════════════════════════════════════════╝"
+    echo ""
+}
+
+# Print section header
+print_section() {
+    echo ""
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo "$1"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+}
+
+# Prompt for input with default
+prompt_input() {
+    local prompt="$1"
+    local default="${2:-}"
+    local is_secret="${3:-false}"
+
+    if [[ -n "$default" ]]; then
+        echo -n "$prompt [$default]: "
+    else
+        echo -n "$prompt: "
+    fi
+
+    if [[ "$is_secret" == "true" ]]; then
+        read -r -s input
+        echo ""  # New line after secret input
+    else
+        read -r input
+    fi
+
+    if [[ -z "$input" ]] && [[ -n "$default" ]]; then
+        echo "$default"
+    else
+        echo "$input"
+    fi
+}
+
+# Confirm action
+confirm() {
+    local prompt="$1"
+    echo -n "$prompt (y/n): "
+    read -r response
+    [[ "$response" =~ ^[Yy] ]]
+}
+
+# Detect OS
+detect_os() {
+    if [[ -f /proc/version ]] && grep -qi microsoft /proc/version; then
+        echo "WSL"
+    elif [[ "$(uname)" == "Darwin" ]]; then
+        echo "MAC"
+    elif [[ "$(uname)" == "Linux" ]]; then
+        echo "LINUX"
+    else
+        echo "UNKNOWN"
+    fi
+}
+
+# ============================================================================
+# Dependency Checks
+# ============================================================================
+
+check_dependencies() {
+    print_section "Step 1: Checking Dependencies"
+
+    local os
+    os=$(detect_os)
+    wow_info "Detected OS: $os"
+
+    local all_ok=true
+
+    # Check keychain tools
+    echo ""
+    echo "Checking keychain tools..."
+    case "$os" in
+        WSL|LINUX)
+            if command -v secret-tool &>/dev/null; then
+                wow_success "libsecret-tools is installed"
+            else
+                wow_error "libsecret-tools is NOT installed"
+                echo "  Install with: sudo apt-get install libsecret-tools"
+                all_ok=false
+            fi
+            ;;
+        MAC)
+            if command -v security &>/dev/null; then
+                wow_success "macOS keychain is available"
+            else
+                wow_error "macOS keychain is NOT available"
+                all_ok=false
+            fi
+            ;;
+        *)
+            wow_error "Unsupported operating system"
+            all_ok=false
+            ;;
+    esac
+
+    # Check email clients
+    echo ""
+    echo "Checking email clients..."
+    if command -v sendemail &>/dev/null; then
+        wow_success "sendemail is installed (preferred)"
+    elif command -v mutt &>/dev/null; then
+        wow_success "mutt is installed (fallback)"
+    else
+        wow_error "No email client found (sendemail or mutt)"
+        echo "  Install with: sudo apt-get install sendemail"
+        echo "  Or: sudo apt-get install mutt"
+        all_ok=false
+    fi
+
+    # Check jq
+    echo ""
+    echo "Checking JSON tools..."
+    if command -v jq &>/dev/null; then
+        wow_success "jq is installed"
+    else
+        wow_error "jq is NOT installed"
+        echo "  Install with: sudo apt-get install jq"
+        all_ok=false
+    fi
+
+    if [[ "$all_ok" == "false" ]]; then
+        echo ""
+        wow_error "Missing required dependencies. Please install them and try again."
+        exit 1
+    fi
+
+    wow_success "All dependencies are installed!"
+}
+
+# ============================================================================
+# Configuration Input
+# ============================================================================
+
+get_smtp_provider() {
+    print_section "Step 2: Select Email Provider"
+
+    echo "Select your email provider:"
+    echo "  1) Gmail"
+    echo "  2) Outlook/Office365"
+    echo "  3) Custom SMTP Server"
+    echo ""
+
+    local choice
+    choice=$(prompt_input "Enter choice (1-3)" "1")
+
+    case "$choice" in
+        1)
+            echo "GMAIL"
+            ;;
+        2)
+            echo "OUTLOOK"
+            ;;
+        3)
+            echo "CUSTOM"
+            ;;
+        *)
+            wow_error "Invalid choice"
+            get_smtp_provider
+            ;;
+    esac
+}
+
+configure_gmail() {
+    echo ""
+    echo "Gmail Configuration"
+    echo "━━━━━━━━━━━━━━━━━━"
+    echo ""
+    echo "IMPORTANT: You must use an App-Specific Password, not your main Gmail password."
+    echo ""
+    echo "To create an App-Specific Password:"
+    echo "  1. Go to: https://myaccount.google.com/apppasswords"
+    echo "  2. Sign in to your Google account"
+    echo "  3. Select 'Mail' and 'Other (Custom name)'"
+    echo "  4. Name it 'WoW Email Alerts'"
+    echo "  5. Click 'Generate'"
+    echo "  6. Copy the 16-character password"
+    echo ""
+
+    SMTP_HOST="smtp.gmail.com"
+    SMTP_PORT="587"
+    FROM_ADDRESS=$(prompt_input "Your Gmail address" "")
+    TO_ADDRESS=$(prompt_input "Alert recipient email" "$FROM_ADDRESS")
+
+    echo ""
+    echo "Now enter your App-Specific Password (16 characters):"
+    SMTP_PASSWORD=$(prompt_input "App-Specific Password" "" "true")
+}
+
+configure_outlook() {
+    echo ""
+    echo "Outlook/Office365 Configuration"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo ""
+    echo "IMPORTANT: You may need to enable 'Allow less secure apps' or use App Password."
+    echo ""
+
+    SMTP_HOST="smtp-mail.outlook.com"
+    SMTP_PORT="587"
+    FROM_ADDRESS=$(prompt_input "Your Outlook email address" "")
+    TO_ADDRESS=$(prompt_input "Alert recipient email" "$FROM_ADDRESS")
+
+    echo ""
+    echo "Enter your Outlook password or App-Specific Password:"
+    SMTP_PASSWORD=$(prompt_input "Password" "" "true")
+}
+
+configure_custom() {
+    echo ""
+    echo "Custom SMTP Configuration"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo ""
+
+    SMTP_HOST=$(prompt_input "SMTP server hostname" "smtp.example.com")
+    SMTP_PORT=$(prompt_input "SMTP port" "587")
+    FROM_ADDRESS=$(prompt_input "From email address" "")
+    TO_ADDRESS=$(prompt_input "To email address" "$FROM_ADDRESS")
+
+    echo ""
+    echo "Enter your SMTP password or App-Specific Password:"
+    SMTP_PASSWORD=$(prompt_input "Password" "" "true")
+}
+
+configure_smtp() {
+    local provider
+    provider=$(get_smtp_provider)
+
+    case "$provider" in
+        GMAIL)
+            configure_gmail
+            ;;
+        OUTLOOK)
+            configure_outlook
+            ;;
+        CUSTOM)
+            configure_custom
+            ;;
+    esac
+}
+
+# ============================================================================
+# Advanced Settings
+# ============================================================================
+
+configure_advanced() {
+    print_section "Step 3: Advanced Settings"
+
+    echo ""
+    echo "Configure advanced email settings:"
+    echo ""
+
+    PRIORITY_THRESHOLD=$(prompt_input "Priority threshold (LOW/NORMAL/HIGH/CRITICAL)" "HIGH")
+    RATE_LIMIT=$(prompt_input "Rate limit (emails per hour, 0=unlimited)" "5")
+
+    # Validate inputs
+    case "$PRIORITY_THRESHOLD" in
+        LOW|NORMAL|HIGH|CRITICAL)
+            ;;
+        *)
+            wow_warn "Invalid priority threshold, using HIGH"
+            PRIORITY_THRESHOLD="HIGH"
+            ;;
+    esac
+
+    if ! [[ "$RATE_LIMIT" =~ ^[0-9]+$ ]]; then
+        wow_warn "Invalid rate limit, using 5"
+        RATE_LIMIT="5"
+    fi
+}
+
+# ============================================================================
+# Save Configuration
+# ============================================================================
+
+save_to_keychain() {
+    print_section "Step 4: Saving Credentials Securely"
+
+    local os
+    os=$(detect_os)
+
+    echo ""
+    echo "Storing password in OS keychain..."
+
+    case "$os" in
+        WSL|LINUX)
+            echo -n "$SMTP_PASSWORD" | secret-tool store \
+                --label="WoW Email Alerts Password" \
+                service "wow-email" \
+                username "alerts" 2>&1 | grep -v -iE '(password|pass|credentials)'
+            ;;
+        MAC)
+            security add-generic-password \
+                -a "alerts" \
+                -s "wow-email" \
+                -w "$SMTP_PASSWORD" \
+                -U 2>&1 | grep -v -iE '(password|pass|credentials)'
+            ;;
+    esac
+
+    if [[ $? -eq 0 ]]; then
+        wow_success "Password stored securely in keychain"
+    else
+        wow_error "Failed to store password in keychain"
+        return 1
+    fi
+
+    # Clear password from memory
+    SMTP_PASSWORD="CLEARED"
+    unset SMTP_PASSWORD
+}
+
+save_to_config() {
+    echo ""
+    echo "Updating configuration file..."
+
+    local config_file="$WOW_ROOT/config/wow-config.json"
+
+    if [[ ! -f "$config_file" ]]; then
+        wow_error "Configuration file not found: $config_file"
+        return 1
+    fi
+
+    # Create backup
+    cp "$config_file" "$config_file.backup"
+
+    # Update configuration using jq
+    local temp_file="${config_file}.tmp"
+
+    jq --arg smtp_host "$SMTP_HOST" \
+       --arg smtp_port "$SMTP_PORT" \
+       --arg from_addr "$FROM_ADDRESS" \
+       --arg to_addr "$TO_ADDRESS" \
+       --arg threshold "$PRIORITY_THRESHOLD" \
+       --argjson rate_limit "$RATE_LIMIT" \
+       '.capture.email_alerts = {
+           enabled: true,
+           priority_threshold: $threshold,
+           rate_limit: $rate_limit,
+           smtp_host: $smtp_host,
+           smtp_port: ($smtp_port | tonumber),
+           from_address: $from_addr,
+           to_address: $to_addr
+       }' "$config_file" > "$temp_file"
+
+    if [[ $? -eq 0 ]]; then
+        mv "$temp_file" "$config_file"
+        wow_success "Configuration file updated"
+    else
+        wow_error "Failed to update configuration file"
+        mv "$config_file.backup" "$config_file"
+        return 1
+    fi
+}
+
+# ============================================================================
+# Test Configuration
+# ============================================================================
+
+test_email() {
+    print_section "Step 5: Testing Email Configuration"
+
+    echo ""
+    if confirm "Would you like to send a test email?"; then
+        echo ""
+        echo "Sending test email..."
+
+        # Source email sender
+        source "$WOW_ROOT/src/tools/email-sender.sh"
+
+        email_init
+
+        if email_test_connection; then
+            wow_success "Test email sent successfully!"
+            echo ""
+            echo "Check your inbox at: $TO_ADDRESS"
+            return 0
+        else
+            wow_error "Failed to send test email"
+            echo ""
+            echo "Please check your configuration and try again."
+            return 1
+        fi
+    else
+        echo ""
+        echo "Skipping test email."
+        echo "You can test later by running: wow-email-test"
+        return 0
+    fi
+}
+
+# ============================================================================
+# Main Setup Flow
+# ============================================================================
+
+main() {
+    print_banner
+
+    wow_info "This wizard will help you configure secure email alerts for WoW System."
+    echo ""
+
+    # Check dependencies
+    check_dependencies
+
+    # Get SMTP configuration
+    configure_smtp
+
+    # Advanced settings
+    configure_advanced
+
+    # Save configuration
+    if ! save_to_keychain; then
+        wow_fatal "Failed to save credentials. Setup aborted."
+    fi
+
+    if ! save_to_config; then
+        wow_fatal "Failed to save configuration. Setup aborted."
+    fi
+
+    # Test email
+    test_email
+
+    # Done
+    print_section "Setup Complete!"
+
+    echo ""
+    wow_success "Email alerts are now configured!"
+    echo ""
+    echo "Configuration Summary:"
+    echo "  SMTP Server: $SMTP_HOST:$SMTP_PORT"
+    echo "  From: $FROM_ADDRESS"
+    echo "  To: $TO_ADDRESS"
+    echo "  Priority Threshold: $PRIORITY_THRESHOLD"
+    echo "  Rate Limit: $RATE_LIMIT emails/hour"
+    echo ""
+    echo "Your password is stored securely in your OS keychain."
+    echo "It will never be logged or stored in plaintext."
+    echo ""
+    echo "To test email: source src/tools/email-sender.sh && email_test_connection"
+    echo "To remove credentials: source src/tools/email-sender.sh && email_remove_credentials"
+    echo ""
+}
+
+# Run main
+main

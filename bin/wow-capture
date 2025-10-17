@@ -1,0 +1,614 @@
+#!/bin/bash
+# WoW System - Capture CLI Tool
+# Retroactive frustration analysis from conversation history
+# Author: Chude <chude@emeke.org>
+
+set -uo pipefail
+
+# ============================================================================
+# Environment Setup
+# ============================================================================
+
+# Determine WoW system location
+if [[ -n "${WOW_SYSTEM_DIR:-}" ]]; then
+    WOW_ROOT="${WOW_SYSTEM_DIR}"
+elif [[ -d "${HOME}/.claude/wow-system" ]]; then
+    WOW_ROOT="${HOME}/.claude/wow-system"
+elif [[ -d "/root/wow-system" ]]; then
+    WOW_ROOT="/root/wow-system"
+elif [[ -d "/mnt/c/Users/Destiny/iCloudDrive/Documents/AI Tools/Anthropic Solution/Projects/wow-system" ]]; then
+    WOW_ROOT="/mnt/c/Users/Destiny/iCloudDrive/Documents/AI Tools/Anthropic Solution/Projects/wow-system"
+else
+    echo "ERROR: WoW system not found" >&2
+    exit 1
+fi
+
+# Source library
+LIB_PATH="${WOW_ROOT}/lib/wow-capture-lib.sh"
+if [[ ! -f "$LIB_PATH" ]]; then
+    echo "ERROR: Capture library not found at $LIB_PATH" >&2
+    exit 1
+fi
+
+source "$LIB_PATH"
+
+# ============================================================================
+# Constants
+# ============================================================================
+
+readonly VERSION="1.0.0"
+readonly PRINCIPLES_DIR="${WOW_ROOT}/docs/principles"
+
+# Global state
+declare -A FINDINGS=()
+declare -i FINDING_COUNT=0
+declare -A STATS=(
+    ["total_scanned"]=0
+    ["total_detected"]=0
+    ["high_conf"]=0
+    ["medium_conf"]=0
+    ["low_conf"]=0
+    ["credentials"]=0
+    ["approved"]=0
+    ["skipped"]=0
+)
+
+# ============================================================================
+# Helper Functions
+# ============================================================================
+
+# Usage information
+show_usage() {
+    cat <<EOF
+${C_BOLD}${C_CYAN}wow-capture - Retroactive Frustration Analysis${C_RESET}
+
+${C_BOLD}USAGE:${C_RESET}
+    wow-capture [command] [options]
+
+${C_BOLD}COMMANDS:${C_RESET}
+    analyze [date-range]    Analyze conversations for frustrations
+    review                  Interactive review of detected frustrations
+    report                  Generate summary report
+    config                  Configure capture settings
+    help                    Show this help message
+
+${C_BOLD}OPTIONS:${C_RESET}
+    --from DATE            Start date (YYYY-MM-DD)
+    --to DATE              End date (YYYY-MM-DD)
+    --session ID           Specific session ID
+    --confidence LEVEL     Filter by confidence (HIGH/MEDIUM/LOW)
+    --dry-run              Show what would be logged, don't write
+    --auto-approve         Log all HIGH confidence automatically
+    --output FILE          Save to specific file
+    --help, -h             Show this help message
+    --version, -v          Show version information
+
+${C_BOLD}EXAMPLES:${C_RESET}
+    # Analyze today's conversations
+    wow-capture analyze
+
+    # Analyze specific date range
+    wow-capture analyze --from 2025-10-01 --to 2025-10-05
+
+    # Auto-approve HIGH confidence findings
+    wow-capture analyze --auto-approve
+
+    # Dry run (no writes)
+    wow-capture analyze --dry-run
+
+    # Interactive review
+    wow-capture review
+
+    # Generate report
+    wow-capture report
+
+${C_BOLD}ENVIRONMENT:${C_RESET}
+    WOW_DEBUG=1            Enable debug output
+    WOW_SYSTEM_DIR         Override WoW system location
+
+${C_BOLD}VERSION:${C_RESET}
+    wow-capture v${VERSION}
+
+EOF
+}
+
+# Show version
+show_version() {
+    echo "wow-capture v${VERSION}"
+    lib_version
+}
+
+# ============================================================================
+# Analysis Functions
+# ============================================================================
+
+# Analyze conversation history
+cmd_analyze() {
+    local from_date="${1:-}"
+    local to_date="${2:-}"
+    local dry_run="${3:-false}"
+    local auto_approve="${4:-false}"
+    local output_file="${5:-}"
+
+    lib_header "WoW Capture - Conversation Analysis"
+
+    # Find history file
+    local history_file
+    history_file=$(lib_find_history) || {
+        lib_error "Claude history file not found"
+        exit 1
+    }
+
+    lib_info "History file: $history_file"
+
+    # Validate JSONL format
+    if ! lib_validate_jsonl "$history_file"; then
+        lib_error "Invalid JSONL format in history file"
+        exit 1
+    fi
+
+    # Parse dates
+    local from_epoch to_epoch
+    if [[ -n "$from_date" ]]; then
+        from_epoch=$(lib_parse_date "$from_date") || exit 1
+    else
+        # Default: start of today
+        from_epoch=$(date -d "00:00:00" +%s)
+    fi
+
+    if [[ -n "$to_date" ]]; then
+        to_epoch=$(lib_parse_date "$to_date 23:59:59") || exit 1
+    else
+        # Default: end of today
+        to_epoch=$(date +%s)
+    fi
+
+    lib_info "Date range: $(date -d @$from_epoch +%Y-%m-%d) to $(date -d @$to_epoch +%Y-%m-%d)"
+    echo ""
+
+    # Extract relevant entries
+    lib_info "Extracting conversation entries..."
+    local entries
+    entries=$(lib_extract_by_date "$history_file" "$from_epoch" "$to_epoch")
+
+    local entry_count
+    entry_count=$(echo "$entries" | wc -l)
+    STATS["total_scanned"]=$entry_count
+
+    lib_success "Found $entry_count entries to analyze"
+    echo ""
+
+    # Analyze each entry
+    lib_header "Pattern Detection"
+
+    local idx=0
+    local -a detected_frustrations=()
+
+    while IFS= read -r line; do
+        ((idx++)) || true
+        lib_progress "$idx" "$entry_count" "Scanning"
+
+        if [[ -z "$line" ]]; then
+            continue
+        fi
+
+        # Extract content (try multiple fields)
+        local content
+        content=$(echo "$line" | jq -r '.content // .text // .display // empty' 2>/dev/null)
+
+        if [[ -z "$content" ]]; then
+            continue
+        fi
+
+        # Run all detectors
+        local findings=""
+
+        # Credential detection
+        if local cred_result=$(lib_scan_credentials "$content" 2>/dev/null); then
+            findings="${findings}credential|HIGH|Credential detected: $(echo "$cred_result" | jq -r '.type // "unknown"')|$content\n"
+            ((STATS["credentials"]++)) || true
+        fi
+
+        # Repeated errors
+        if [[ $(lib_detect_repeated_errors "[$line]") == "true" ]]; then
+            findings="${findings}repeated_error|MEDIUM|Multiple error mentions detected|$content\n"
+        fi
+
+        # Path issues
+        if [[ $(lib_detect_path_issues "$content") == "true" ]]; then
+            findings="${findings}path_issue|MEDIUM|Path-related issue detected|$content\n"
+        fi
+
+        # Restarts
+        if [[ $(lib_detect_restarts "$content") == "true" ]]; then
+            findings="${findings}restart|LOW|Restart/reload mentioned|$content\n"
+        fi
+
+        # Frustration language
+        if [[ $(lib_detect_frustration_language "$content") == "true" ]]; then
+            findings="${findings}frustration_language|LOW|Frustration language detected|$content\n"
+        fi
+
+        # Workarounds
+        if [[ $(lib_detect_workarounds "$content") == "true" ]]; then
+            findings="${findings}workaround|MEDIUM|Workaround mentioned|$content\n"
+        fi
+
+        # Authority violations
+        if [[ $(lib_detect_authority_violations "$content") == "true" ]]; then
+            findings="${findings}authority_violation|HIGH|Authority/approval violation|$content\n"
+        fi
+
+        # Store findings
+        if [[ -n "$findings" ]]; then
+            detected_frustrations+=("$findings")
+        fi
+    done <<< "$entries"
+
+    echo ""
+    local total_findings=${#detected_frustrations[@]}
+    STATS["total_detected"]=$total_findings
+
+    if [[ $total_findings -eq 0 ]]; then
+        lib_success "No frustrations detected - clean session!"
+        return 0
+    fi
+
+    lib_success "Detected $total_findings frustration patterns"
+    echo ""
+
+    # Present findings
+    lib_header "Detected Frustrations"
+
+    local finding_idx=0
+    for finding_data in "${detected_frustrations[@]}"; do
+        while IFS='|' read -r type confidence evidence context; do
+            ((finding_idx++)) || true
+
+            # Update stats
+            case "$confidence" in
+                HIGH) ((STATS["high_conf"]++)) || true ;;
+                MEDIUM) ((STATS["medium_conf"]++)) || true ;;
+                LOW) ((STATS["low_conf"]++)) || true ;;
+            esac
+
+            # Display finding
+            echo ""
+            lib_print "${C_BOLD}" "[$finding_idx] Type: $type"
+            lib_print "${C_YELLOW}" "    Confidence: $confidence"
+            lib_print "${C_BLUE}" "    Evidence: $evidence"
+
+            # Truncate context for display
+            local display_context="${context:0:200}"
+            if [[ ${#context} -gt 200 ]]; then
+                display_context="${display_context}..."
+            fi
+            lib_print "${C_CYAN}" "    Context: $display_context"
+
+            # Store finding
+            FINDINGS["$finding_idx"]="$type|$confidence|$evidence|$context"
+
+        done <<< "$(echo -e "$finding_data")"
+    done
+
+    echo ""
+
+    # Interactive or auto-approve
+    if [[ "$auto_approve" == "true" ]]; then
+        lib_header "Auto-Approval (HIGH confidence only)"
+        cmd_auto_approve "$dry_run" "$output_file"
+    elif [[ "$dry_run" == "true" ]]; then
+        lib_header "Dry Run - No Changes Made"
+        show_summary
+    else
+        cmd_review "$output_file"
+    fi
+}
+
+# Auto-approve HIGH confidence findings
+cmd_auto_approve() {
+    local dry_run="${1:-false}"
+    local output_file="${2:-}"
+
+    local approved=0
+    for idx in "${!FINDINGS[@]}"; do
+        IFS='|' read -r type confidence evidence context <<< "${FINDINGS[$idx]}"
+
+        if [[ "$confidence" == "HIGH" ]]; then
+            lib_success "Auto-approved: [$idx] $type"
+            ((approved++)) || true
+            ((STATS["approved"]++)) || true
+
+            if [[ "$dry_run" == "false" ]]; then
+                log_to_scratch "$type" "$confidence" "$evidence" "$context" "$output_file"
+            fi
+        fi
+    done
+
+    echo ""
+    lib_success "Auto-approved $approved HIGH confidence findings"
+
+    if [[ "$dry_run" == "true" ]]; then
+        lib_warn "DRY RUN: No files were modified"
+    fi
+}
+
+# ============================================================================
+# Review Functions
+# ============================================================================
+
+# Interactive review
+cmd_review() {
+    local output_file="${1:-}"
+
+    if [[ ${#FINDINGS[@]} -eq 0 ]]; then
+        lib_warn "No findings to review. Run 'wow-capture analyze' first."
+        return 0
+    fi
+
+    lib_header "Interactive Review"
+    lib_info "Review each finding: [y] Log, [n] Skip, [e] Edit, [q] Quit"
+    echo ""
+
+    for idx in $(echo "${!FINDINGS[@]}" | tr ' ' '\n' | sort -n); do
+        IFS='|' read -r type confidence evidence context <<< "${FINDINGS[$idx]}"
+
+        echo ""
+        lib_print "${C_BOLD}${C_CYAN}" "========================================="
+        lib_print "${C_BOLD}" "Finding #$idx"
+        lib_print "${C_YELLOW}" "Type: $type"
+        lib_print "${C_YELLOW}" "Confidence: $confidence"
+        lib_print "${C_BLUE}" "Evidence: $evidence"
+
+        # Show full context
+        echo ""
+        lib_print "${C_CYAN}" "Context:"
+        echo "$context" | fold -s -w 70 | sed 's/^/  /'
+        echo ""
+
+        # Prompt user
+        while true; do
+            read -p "$(lib_print "${C_BOLD}" "Action [y/n/e/q]: ")" action
+
+            case "$action" in
+                y|Y)
+                    lib_success "Logging to scratch.md..."
+                    log_to_scratch "$type" "$confidence" "$evidence" "$context" "$output_file"
+                    ((STATS["approved"]++)) || true
+                    break
+                    ;;
+                n|N)
+                    lib_warn "Skipped"
+                    ((STATS["skipped"]++)) || true
+                    break
+                    ;;
+                e|E)
+                    lib_info "Edit mode not implemented yet - logging original"
+                    log_to_scratch "$type" "$confidence" "$evidence" "$context" "$output_file"
+                    ((STATS["approved"]++)) || true
+                    break
+                    ;;
+                q|Q)
+                    lib_warn "Review cancelled"
+                    show_summary
+                    return 0
+                    ;;
+                *)
+                    lib_error "Invalid choice. Use y/n/e/q"
+                    ;;
+            esac
+        done
+    done
+
+    echo ""
+    lib_success "Review complete!"
+    show_summary
+}
+
+# ============================================================================
+# Logging Functions
+# ============================================================================
+
+# Log finding to scratch.md
+log_to_scratch() {
+    local type="$1"
+    local confidence="$2"
+    local evidence="$3"
+    local context="$4"
+    local output_file="${5:-}"
+
+    # Determine output file
+    local scratch_file
+    if [[ -n "$output_file" ]]; then
+        scratch_file="$output_file"
+    else
+        # Find current version directory
+        local version_dir
+        version_dir=$(find "$PRINCIPLES_DIR" -maxdepth 1 -type d -name "v*" | sort -V | tail -1)
+
+        if [[ -z "$version_dir" ]]; then
+            lib_error "No version directory found in $PRINCIPLES_DIR"
+            return 1
+        fi
+
+        scratch_file="${version_dir}/scratch.md"
+    fi
+
+    # Create file if it doesn't exist
+    if [[ ! -f "$scratch_file" ]]; then
+        lib_warn "Creating new scratch file: $scratch_file"
+        echo "# Raw Notes & Observations" > "$scratch_file"
+        echo "" >> "$scratch_file"
+    fi
+
+    # Generate entry
+    local timestamp=$(date +"%Y-%m-%d %H:%M:%S")
+    local entry=$(cat <<EOF
+
+---
+
+## ${confidence} CONFIDENCE: ${type}
+
+**Detected**: ${timestamp}
+**Evidence**: ${evidence}
+
+**Context**:
+\`\`\`
+${context}
+\`\`\`
+
+EOF
+)
+
+    # Append to file
+    echo "$entry" >> "$scratch_file"
+
+    lib_debug "Logged to $scratch_file"
+}
+
+# ============================================================================
+# Report Functions
+# ============================================================================
+
+# Show summary statistics
+show_summary() {
+    lib_header "Summary Statistics"
+
+    cat <<EOF
+Total Entries Scanned:     ${STATS["total_scanned"]}
+Total Frustrations Found:  ${STATS["total_detected"]}
+
+By Confidence:
+  - HIGH:    ${STATS["high_conf"]}
+  - MEDIUM:  ${STATS["medium_conf"]}
+  - LOW:     ${STATS["low_conf"]}
+
+Credentials Detected:      ${STATS["credentials"]}
+
+User Decisions:
+  - Approved:  ${STATS["approved"]}
+  - Skipped:   ${STATS["skipped"]}
+
+EOF
+
+    if [[ ${STATS["credentials"]} -gt 0 ]]; then
+        echo ""
+        lib_print "${C_RED}${C_BOLD}" "WARNING: Credentials detected! Review and rotate immediately."
+    fi
+}
+
+# Generate full report
+cmd_report() {
+    lib_header "Frustration Analysis Report"
+    show_summary
+
+    echo ""
+    lib_info "Report generation complete"
+}
+
+# ============================================================================
+# Configuration Functions
+# ============================================================================
+
+# Configure settings
+cmd_config() {
+    lib_header "Configuration"
+
+    cat <<EOF
+Current Settings:
+  - History File: $(lib_find_history || echo "Not found")
+  - Principles Dir: ${PRINCIPLES_DIR}
+  - WoW Root: ${WOW_ROOT}
+  - Debug Mode: ${WOW_DEBUG:-0}
+
+Detection Thresholds:
+  - Repeated Errors: ${THRESHOLD_REPEATED}
+  - Rapid Fire: ${THRESHOLD_RAPID_FIRE}
+  - Time Window: ${THRESHOLD_TIME_WINDOW}s
+
+Note: Configuration file support coming in future release.
+EOF
+}
+
+# ============================================================================
+# Main Entry Point
+# ============================================================================
+
+main() {
+    local command="${1:-help}"
+    shift || true
+
+    # Parse global options
+    local from_date=""
+    local to_date=""
+    local dry_run="false"
+    local auto_approve="false"
+    local output_file=""
+
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --from)
+                from_date="$2"
+                shift 2
+                ;;
+            --to)
+                to_date="$2"
+                shift 2
+                ;;
+            --dry-run)
+                dry_run="true"
+                shift
+                ;;
+            --auto-approve)
+                auto_approve="true"
+                shift
+                ;;
+            --output)
+                output_file="$2"
+                shift 2
+                ;;
+            -h|--help)
+                show_usage
+                exit 0
+                ;;
+            -v|--version)
+                show_version
+                exit 0
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+
+    # Execute command
+    case "$command" in
+        analyze)
+            cmd_analyze "$from_date" "$to_date" "$dry_run" "$auto_approve" "$output_file"
+            ;;
+        review)
+            cmd_review "$output_file"
+            ;;
+        report)
+            cmd_report
+            ;;
+        config)
+            cmd_config
+            ;;
+        help|--help|-h)
+            show_usage
+            ;;
+        version|--version|-v)
+            show_version
+            ;;
+        *)
+            lib_error "Unknown command: $command"
+            echo ""
+            show_usage
+            exit 1
+            ;;
+    esac
+}
+
+# Run main
+main "$@"

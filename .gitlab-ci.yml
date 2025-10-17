@@ -1,0 +1,207 @@
+# GitLab CI/CD Configuration: docTruth Documentation Validation
+# Author: Chude <chude@emeke.org>
+#
+# Purpose: Ensures documentation is always current before merging MRs
+# Strategy: Hybrid enforcement (validate on MRs, auto-update on main)
+
+stages:
+  - validate
+  - update
+
+# Default configuration
+default:
+  image: node:18-alpine
+  before_script:
+    - apk add --no-cache bash git
+    - npm install -g doctruth
+    - doctruth --version
+
+# Cache node modules
+cache:
+  key: ${CI_COMMIT_REF_SLUG}
+  paths:
+    - node_modules/
+
+# ============================================================================
+# Validation Stage (runs on all branches)
+# ============================================================================
+
+validate:config:
+  stage: validate
+  script:
+    - echo "🔍 Validating docTruth configuration..."
+    - |
+      if [ -f .doctruth.yml ]; then
+        echo "✓ Found .doctruth.yml"
+        # Validate YAML syntax
+        node -e "
+          const yaml = require('js-yaml');
+          const fs = require('fs');
+          try {
+            const config = yaml.load(fs.readFileSync('.doctruth.yml', 'utf8'));
+            console.log('✓ Valid YAML syntax');
+            console.log('  Project:', config.project);
+            console.log('  Truth sources:', config.truth_sources?.length || 0);
+            console.log('  Validations:', config.validations?.length || 0);
+          } catch (e) {
+            console.error('✗ Invalid YAML:', e.message);
+            process.exit(1);
+          }
+        "
+      else
+        echo "⚠️  No .doctruth.yml found - skipping validation"
+        exit 0
+      fi
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+
+validate:documentation:
+  stage: validate
+  script:
+    - echo "📚 Checking if documentation is current..."
+    - |
+      if [ ! -f .doctruth.yml ]; then
+        echo "⚠️  No .doctruth.yml - skipping"
+        exit 0
+      fi
+
+      # Check if docs are current
+      if doctruth --check; then
+        echo "✓ Documentation is up to date"
+      else
+        echo "❌ Documentation is outdated"
+        echo ""
+        echo "To fix this, run:"
+        echo "  doctruth"
+        echo "  git add CURRENT_TRUTH.md"
+        echo "  git commit -m 'docs: update CURRENT_TRUTH.md'"
+        echo ""
+        exit 1
+      fi
+  artifacts:
+    when: always
+    paths:
+      - CURRENT_TRUTH.md
+    expire_in: 30 days
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+
+# ============================================================================
+# Update Stage (runs on main branch only)
+# ============================================================================
+
+update:documentation:
+  stage: update
+  script:
+    - echo "🔄 Auto-updating documentation..."
+    - |
+      if [ ! -f .doctruth.yml ]; then
+        echo "⚠️  No .doctruth.yml - skipping"
+        exit 0
+      fi
+
+      # Generate fresh documentation
+      doctruth
+
+      # Check if there are changes
+      if git diff --exit-code CURRENT_TRUTH.md; then
+        echo "✓ No documentation changes"
+      else
+        echo "📝 Documentation updated, committing..."
+
+        # Configure git
+        git config user.email "gitlab-ci@gitlab.com"
+        git config user.name "GitLab CI"
+
+        # Commit and push
+        git add CURRENT_TRUTH.md
+        git commit -m "docs: auto-update CURRENT_TRUTH.md [skip ci]
+
+        🤖 Generated with docTruth via GitLab CI
+
+        Co-Authored-By: Claude <noreply@anthropic.com>"
+
+        # Push using GitLab CI token
+        git push https://oauth2:${CI_JOB_TOKEN}@${CI_SERVER_HOST}/${CI_PROJECT_PATH}.git HEAD:${CI_COMMIT_BRANCH}
+
+        echo "✓ Documentation auto-updated"
+      fi
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+      when: always
+  allow_failure: true  # Don't block pipeline if auto-update fails
+
+# ============================================================================
+# Manual Jobs (can be triggered on-demand)
+# ============================================================================
+
+generate:documentation:
+  stage: update
+  script:
+    - echo "📚 Generating documentation manually..."
+    - |
+      if [ -f .doctruth.yml ]; then
+        doctruth
+        echo "✓ Documentation generated"
+      else
+        echo "⚠️  No .doctruth.yml found"
+        exit 1
+      fi
+  artifacts:
+    paths:
+      - CURRENT_TRUTH.md
+    expire_in: 7 days
+  rules:
+    - when: manual
+  allow_failure: false
+
+# ============================================================================
+# Merge Request Notes
+# ============================================================================
+
+# If documentation validation fails, add comment to MR
+.mr_comment: &mr_comment |
+  if [ -n "$CI_MERGE_REQUEST_IID" ]; then
+    curl --request POST \
+      --header "PRIVATE-TOKEN: ${CI_JOB_TOKEN}" \
+      "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/merge_requests/${CI_MERGE_REQUEST_IID}/notes" \
+      --form "body=## 📚 Documentation Update Required
+
+  Your documentation is outdated. Please run:
+
+  \`\`\`bash
+  doctruth
+  git add CURRENT_TRUTH.md
+  git commit -m 'docs: update CURRENT_TRUTH.md'
+  \`\`\`
+
+  Or download the updated file from the pipeline artifacts."
+  fi
+
+# ============================================================================
+# Optional: Scheduled Documentation Updates
+# ============================================================================
+
+scheduled:update:
+  stage: update
+  script:
+    - echo "⏰ Scheduled documentation update..."
+    - |
+      if [ -f .doctruth.yml ]; then
+        doctruth
+        git config user.email "gitlab-ci@gitlab.com"
+        git config user.name "GitLab CI (Scheduled)"
+
+        if git diff --exit-code CURRENT_TRUTH.md; then
+          echo "✓ No changes needed"
+        else
+          git add CURRENT_TRUTH.md
+          git commit -m "docs: scheduled CURRENT_TRUTH.md update [skip ci]"
+          git push https://oauth2:${CI_JOB_TOKEN}@${CI_SERVER_HOST}/${CI_PROJECT_PATH}.git HEAD:${CI_COMMIT_BRANCH}
+        fi
+      fi
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+  allow_failure: true

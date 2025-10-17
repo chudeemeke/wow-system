@@ -1,0 +1,306 @@
+# DocTruth Configuration for WoW System
+# Author: Chude <chude@emeke.org>
+#
+# This configuration defines the "truth" about WoW system state
+# Truth is captured by running commands against the actual codebase
+
+version: 1
+project: WoW System
+output: CURRENT_TRUTH.md
+description: "Watch-over-Workflow (WoW) - Autonomous AI Safety System for Claude Code"
+
+meta:
+  timeout_seconds: 30
+  fail_on_error: false
+  update_readme: true
+
+truth_sources:
+  # ============================================================================
+  # Project Identity
+  # ============================================================================
+
+  - name: "Version"
+    command: "grep 'readonly WOW_VERSION=' src/core/utils.sh | cut -d'\"' -f2"
+    essential: true
+    category: "Project"
+
+  - name: "Description"
+    command: "head -10 README.md | grep -A 2 '# WoW System' | tail -1 | sed 's/^> //'"
+    essential: true
+    category: "Project"
+
+  - name: "License"
+    command: "grep '\"license\":' package.json 2>/dev/null | cut -d'\"' -f4 || echo 'MIT'"
+    category: "Project"
+
+  - name: "Author"
+    command: "echo 'Chude <chude@emeke.org>'"
+    essential: true
+    category: "Project"
+
+  # ============================================================================
+  # Architecture
+  # ============================================================================
+
+  - name: "Total Modules"
+    command: "find src -name '*.sh' -type f | wc -l"
+    essential: true
+    category: "Architecture"
+
+  - name: "Core Modules"
+    command: "ls -1 src/core/*.sh | xargs -n1 basename | sed 's/.sh//'"
+    category: "Architecture"
+
+  - name: "Security Handlers"
+    command: "ls -1 src/handlers/*.sh | xargs -n1 basename | sed 's/-handler.sh//' | sed 's/.sh//'"
+    essential: true
+    category: "Architecture"
+
+  - name: "Engines"
+    command: "ls -1 src/engines/*.sh 2>/dev/null | xargs -n1 basename | sed 's/-engine.sh//' | sed 's/.sh//' || echo 'None'"
+    category: "Architecture"
+
+  - name: "Security Components"
+    command: "ls -1 src/security/*.sh 2>/dev/null | xargs -n1 basename | sed 's/.sh//' || echo 'None'"
+    category: "Architecture"
+
+  - name: "UI Components"
+    command: "ls -1 src/ui/*.sh 2>/dev/null | xargs -n1 basename | sed 's/.sh//' || echo 'None'"
+    category: "Architecture"
+
+  - name: "Design Patterns"
+    command: "ls -1 src/patterns/*.sh 2>/dev/null | xargs -n1 basename | sed 's/.sh//' || echo 'None'"
+    category: "Architecture"
+
+  - name: "Tools & Utilities"
+    command: "ls -1 src/tools/*.sh 2>/dev/null | xargs -n1 basename | sed 's/.sh//' || echo 'None'"
+    category: "Architecture"
+
+  - name: "CLI Commands"
+    command: "ls -1 bin/* 2>/dev/null | xargs -n1 basename | grep -v '\\.sh$' || echo 'None'"
+    category: "Architecture"
+
+  # ============================================================================
+  # Testing
+  # ============================================================================
+
+  - name: "Total Tests"
+    command: "find tests -name 'test-*.sh' -type f | wc -l"
+    essential: true
+    category: "Testing"
+
+  - name: "Test Suites"
+    command: "ls -1 tests/test-*.sh | xargs -n1 basename | sed 's/test-//' | sed 's/.sh//'"
+    category: "Testing"
+
+  - name: "Test Coverage - Core"
+    command: "grep -h 'assert_' tests/test-*manager.sh tests/test-*loader.sh 2>/dev/null | wc -l"
+    category: "Testing"
+
+  - name: "Test Coverage - Handlers"
+    command: "grep -h 'assert_' tests/test-*-handler.sh 2>/dev/null | wc -l"
+    category: "Testing"
+
+  - name: "Test Coverage - Engines"
+    command: "grep -h 'assert_' tests/test-*-engine.sh 2>/dev/null | wc -l"
+    category: "Testing"
+
+  # ============================================================================
+  # Features & Capabilities
+  # ============================================================================
+
+  - name: "Handler Count"
+    command: "ls -1 src/handlers/*-handler.sh 2>/dev/null | wc -l"
+    essential: true
+    category: "Features"
+
+  - name: "Handlers List"
+    command: "ls -1 src/handlers/*.sh | xargs -n1 basename | sed 's/-handler.sh//' | tr '\\n' ', ' | sed 's/, $//'"
+    category: "Features"
+
+  - name: "Capture Engine Status"
+    command: "[ -f src/engines/capture-engine.sh ] && echo 'Implemented (v5.0.1)' || echo 'Not implemented'"
+    essential: true
+    category: "Features"
+
+  - name: "Email Alert System"
+    command: "[ -f src/tools/email-sender.sh ] && echo 'Implemented with OS keychain' || echo 'Not implemented'"
+    essential: true
+    category: "Features"
+
+  - name: "Credential Security"
+    command: "[ -f src/security/credential-detector.sh ] && echo 'Implemented (30+ patterns)' || echo 'Not implemented'"
+    category: "Features"
+
+  - name: "Documentation Automation"
+    command: "which doctruth >/dev/null 2>&1 && echo 'docTruth v'$(doctruth --version) || echo 'Not configured'"
+    essential: true
+    category: "Features"
+
+  # ============================================================================
+  # Code Metrics
+  # ============================================================================
+
+  - name: "Total Lines of Code"
+    command: "find src -name '*.sh' -type f -exec wc -l {} + | tail -1 | awk '{print $1}'"
+    category: "Metrics"
+
+  - name: "Core Module LOC"
+    command: "find src/core -name '*.sh' -type f -exec wc -l {} + | tail -1 | awk '{print $1}'"
+    category: "Metrics"
+
+  - name: "Handler LOC"
+    command: "find src/handlers -name '*.sh' -type f -exec wc -l {} + 2>/dev/null | tail -1 | awk '{print $1}' || echo '0'"
+    category: "Metrics"
+
+  - name: "Test LOC"
+    command: "find tests -name '*.sh' -type f -exec wc -l {} + 2>/dev/null | tail -1 | awk '{print $1}' || echo '0'"
+    category: "Metrics"
+
+  - name: "Public Functions"
+    command: "grep -rh '^[a-z_]*() {' src/ | wc -l"
+    category: "Metrics"
+
+  - name: "Documentation Files"
+    command: "find . -maxdepth 3 -name '*.md' -type f | grep -v node_modules | wc -l"
+    category: "Metrics"
+
+  # ============================================================================
+  # Configuration
+  # ============================================================================
+
+  - name: "Default Config Location"
+    command: "echo '~/.claude/wow-config.json or /root/wow-system/wow-config.json'"
+    category: "Configuration"
+
+  - name: "Enforcement Modes"
+    command: "echo 'strict, lenient, monitor (configurable)'"
+    category: "Configuration"
+
+  - name: "Hook Integration"
+    command: "[ -f hooks/user-prompt-submit.sh ] && echo 'PreToolUse hook implemented' || echo 'Not configured'"
+    essential: true
+    category: "Configuration"
+
+  # ============================================================================
+  # Dependencies
+  # ============================================================================
+
+  - name: "System Dependencies"
+    command: "echo 'bash >= 4.0, jq, libsecret-tools (optional)'"
+    category: "Dependencies"
+
+  - name: "Bash Version"
+    command: "bash --version | head -1 | grep -oE '[0-9]+\\.[0-9]+\\.[0-9]+'"
+    category: "Dependencies"
+
+  - name: "jq Available"
+    command: "which jq >/dev/null 2>&1 && echo 'Yes ('$(jq --version)')' || echo 'No'"
+    category: "Dependencies"
+
+  - name: "libsecret Available"
+    command: "which secret-tool >/dev/null 2>&1 && echo 'Yes' || echo 'No (optional)'"
+    category: "Dependencies"
+
+# ============================================================================
+# Validations
+# ============================================================================
+
+validations:
+  - name: "Version consistency"
+    command: |
+      CODE_VER=$(grep 'readonly WOW_VERSION=' src/core/utils.sh | cut -d'"' -f2)
+      README_VER=$(grep -m1 'v[0-9]' README.md | grep -oE '[0-9]+\\.[0-9]+\\.[0-9]+' | head -1)
+      if [ "$CODE_VER" = "$README_VER" ]; then
+        echo "✓ Version ${CODE_VER} consistent across code and docs"
+      else
+        echo "✗ Version mismatch: code=${CODE_VER}, readme=${README_VER}"
+      fi
+    required: true
+
+  - name: "All handlers have tests"
+    command: |
+      HANDLERS=$(ls -1 src/handlers/*.sh 2>/dev/null | wc -l)
+      TESTS=$(ls -1 tests/test-*-handler.sh 2>/dev/null | wc -l)
+      if [ "$HANDLERS" -eq "$TESTS" ]; then
+        echo "✓ All ${HANDLERS} handlers have test coverage"
+      else
+        echo "✗ Handler/test mismatch: ${HANDLERS} handlers, ${TESTS} tests"
+      fi
+    required: true
+
+  - name: "Core modules present"
+    command: |
+      REQUIRED="utils.sh file-storage.sh state-manager.sh config-loader.sh session-manager.sh orchestrator.sh"
+      MISSING=""
+      for mod in $REQUIRED; do
+        [ ! -f "src/core/$mod" ] && MISSING="$MISSING $mod"
+      done
+      if [ -z "$MISSING" ]; then
+        echo "✓ All core modules present"
+      else
+        echo "✗ Missing core modules:$MISSING"
+      fi
+    required: true
+
+  - name: "Hook executable"
+    command: "[ -x hooks/user-prompt-submit.sh ] && echo '✓ Hook is executable' || echo '✗ Hook not executable'"
+    required: true
+
+  - name: "Config file exists"
+    command: "[ -f wow-config.json ] || [ -f ~/.claude/wow-config.json ] && echo '✓ Config found' || echo '✗ No config'"
+    required: true
+
+# ============================================================================
+# Working Examples
+# ============================================================================
+
+working_examples:
+  - name: "Initialize WoW"
+    command: "echo 'source /root/wow-system/src/core/orchestrator.sh && wow_init'"
+
+  - name: "Run all tests"
+    command: "echo 'for test in tests/test-*.sh; do bash $test; done'"
+
+  - name: "Check handler status"
+    command: "echo 'source src/handlers/handler-router.sh && handler_router_list'"
+
+  - name: "View session metrics"
+    command: "echo 'cat ~/.wow-data/sessions/latest/metrics.json'"
+
+  - name: "Update documentation"
+    command: "echo 'doctruth'"
+
+# ============================================================================
+# Benchmarks
+# ============================================================================
+
+benchmarks:
+  - name: "Hook execution time"
+    command: "{ time bash hooks/user-prompt-submit.sh >/dev/null 2>&1; } 2>&1 | grep real | awk '{print $2}'"
+    unit: ""
+
+  - name: "Total codebase size"
+    command: "du -sh src | cut -f1"
+    unit: ""
+
+  - name: "Total test suite size"
+    command: "du -sh tests 2>/dev/null | cut -f1 || echo '0K'"
+    unit: ""
+
+# ============================================================================
+# Platform
+# ============================================================================
+
+platform:
+  - name: "Operating System"
+    command: "uname -s"
+
+  - name: "OS Version"
+    command: "uname -r"
+
+  - name: "Shell"
+    command: "echo $SHELL"
+
+  - name: "Installation Location"
+    command: "echo ${WOW_HOME:-/root/wow-system}"

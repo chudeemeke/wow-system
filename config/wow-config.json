@@ -1,9 +1,17 @@
 {
-  "version": "5.0.0",
+  "version": "5.1.0",
   "enforcement": {
     "enabled": true,
     "strict_mode": false,
     "block_on_violation": false
+  },
+  "performance": {
+    "fast_path_enabled": true,
+    "fast_path_validators": [
+      "current_directory",
+      "safe_extension",
+      "non_system_path"
+    ]
   },
   "scoring": {
     "threshold_warn": 50,
@@ -21,10 +29,30 @@
       "session_tracking": true
     }
   },
+  "capture": {
+    "email_alerts": {
+      "enabled": false,
+      "priority_threshold": "HIGH",
+      "rate_limit": 5,
+      "smtp_host": "smtp.gmail.com",
+      "smtp_port": 587,
+      "from_address": "",
+      "to_address": ""
+    }
+  },
   "_comments": {
+    "fast_path_enabled": "v5.1.0: Enable fast path validation for 70-80% performance improvement (default: true)",
+    "fast_path_validators": "v5.1.0: List of fast path validators to use (current_directory, safe_extension, non_system_path)",
     "max_file_operations": "0 = unlimited, >0 = max operations per session (default: 10)",
     "max_bash_commands": "0 = unlimited, >0 = max bash commands per session (default: 5)",
     "strict_mode": "true = all warnings become blocks (fail-closed on ambiguity)",
-    "block_on_violation": "true = any violation is immediately blocked (most restrictive)"
+    "block_on_violation": "true = any violation is immediately blocked (most restrictive)",
+    "email_alerts.enabled": "Enable/disable email alerts (default: false)",
+    "email_alerts.priority_threshold": "Minimum priority to send email: LOW, NORMAL, HIGH, CRITICAL (default: HIGH)",
+    "email_alerts.rate_limit": "Max emails per hour, 0 = unlimited (default: 5)",
+    "email_alerts.smtp_host": "SMTP server hostname",
+    "email_alerts.smtp_port": "SMTP port (587 for TLS, 465 for SSL)",
+    "email_alerts.from_address": "Email address to send from",
+    "email_alerts.to_address": "Email address to send alerts to"
   }
 }
