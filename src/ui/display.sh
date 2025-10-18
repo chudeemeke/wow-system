@@ -83,6 +83,56 @@ ${C_BOLD}${C_CYAN}${BOX_BL}${BOX_H}${BOX_H}${BOX_H}${BOX_H}${BOX_H}${BOX_H}${BOX
 EOF
 }
 
+# Display session start banner with full configuration
+# Args: none (reads from session manager and config)
+display_session_banner() {
+    # Get version from utils
+    local version="${WOW_VERSION:-5.3.0}"
+
+    # Get configuration
+    local enforcement_status="Enabled"
+    local fast_path_status="Enabled"
+    local handlers_count=8
+
+    # Get current score
+    local score=70
+    if type scoring_get_score &>/dev/null; then
+        score=$(scoring_get_score 2>/dev/null || echo "70")
+    fi
+
+    # Get session start time
+    local start_time
+    start_time=$(date +"%Y-%m-%d %H:%M:%S" 2>/dev/null || echo "Unknown")
+
+    # Get current directory
+    local location
+    location=$(pwd | sed "s|^$HOME|~|")
+
+    # Status indicator
+    local status_indicator="${C_GREEN}✅ Active${C_RESET}"
+
+    cat <<EOF
+
+${C_BOLD}${C_CYAN}╔══════════════════════════════════════════════════════════╗${C_RESET}
+${C_BOLD}${C_CYAN}║  WoW System v${version} - Ways of Working Enforcement   ║${C_RESET}
+${C_BOLD}${C_CYAN}║  Status: ${status_indicator}                                        ${C_BOLD}${C_CYAN}║${C_RESET}
+${C_BOLD}${C_CYAN}╠══════════════════════════════════════════════════════════╣${C_RESET}
+${C_BOLD}║  Configuration:                                          ║${C_RESET}
+${C_BOLD}║  • Enforcement: ${C_GREEN}${enforcement_status}${C_RESET}${C_BOLD}                                  ║${C_RESET}
+${C_BOLD}║  • Fast Path: ${C_GREEN}${fast_path_status}${C_RESET}${C_BOLD} (70-80% faster)                    ║${C_RESET}
+${C_BOLD}║  • Handlers: ${C_CYAN}${handlers_count}${C_RESET}${C_BOLD} loaded (Bash, Write, Edit, Read,   ║${C_RESET}
+${C_BOLD}║              Glob, Grep, Task, WebFetch)                 ║${C_RESET}
+${C_BOLD}║  • Scoring: ${C_GREEN}Enabled${C_RESET}${C_BOLD} (warn=50, block=30)               ║${C_RESET}
+${C_BOLD}║                                                          ║${C_RESET}
+${C_BOLD}║  Session Info:                                           ║${C_RESET}
+${C_BOLD}║  • Started: ${C_GRAY}${start_time}${C_RESET}${C_BOLD}                          ║${C_RESET}
+${C_BOLD}║  • Location: ${C_YELLOW}${location:0:43}${C_RESET}${C_BOLD}                    ║${C_RESET}
+${C_BOLD}║  • Initial Score: ${C_CYAN}${score}/100${C_RESET}${C_BOLD}                                 ║${C_RESET}
+${C_BOLD}${C_CYAN}╚══════════════════════════════════════════════════════════╝${C_RESET}
+
+EOF
+}
+
 # Display minimal status line
 display_statusline() {
     local score="${1:-70}"

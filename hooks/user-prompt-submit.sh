@@ -49,6 +49,10 @@ source "${WOW_SYSTEM_DIR}/src/core/orchestrator.sh" 2>/dev/null || {
     exit 0  # Don't block on errors
 }
 
+# Source UI modules (for display functions)
+source "${WOW_SYSTEM_DIR}/src/ui/display.sh" 2>/dev/null || true
+source "${WOW_SYSTEM_DIR}/src/ui/score-display.sh" 2>/dev/null || true
+
 # ============================================================================
 # Main Hook Logic
 # ============================================================================
@@ -65,6 +69,11 @@ main() {
             echo '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"allow","permissionDecisionReason":"WoW initialization failed"}}' | jq -c
             exit 0
         }
+
+        # Display session banner on first initialization
+        if type display_session_banner &>/dev/null; then
+            display_session_banner >&2
+        fi
     fi
 
     # Extract tool information from Claude Code PreToolUse format
@@ -112,8 +121,17 @@ main() {
             # Handler blocked the operation
             wow_error "WoW System: Operation blocked by handler" >&2
 
-            # Display alert
-            if type display_alert &>/dev/null; then
+            # Extract path/command from handler_input for display
+            local violation_path=""
+            if wow_has_jq; then
+                violation_path=$(echo "${handler_input}" | jq -r '.command // .file_path // .path // .pattern // "unknown"' 2>/dev/null || echo "unknown")
+            fi
+
+            # Display violation with score
+            if type score_display_violation &>/dev/null; then
+                score_display_violation "security_violation" "${violation_path}" "${tool_type}-handler" >&2
+            elif type display_alert &>/dev/null; then
+                # Fallback to simple alert
                 display_alert "error" "Operation Blocked" "WoW System prevented a dangerous operation" >&2
             fi
 

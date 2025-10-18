@@ -17,6 +17,7 @@ readonly WOW_HANDLER_ROUTER_LOADED=1
 # Source dependencies
 _HANDLER_ROUTER_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${_HANDLER_ROUTER_DIR}/../core/utils.sh"
+source "${_HANDLER_ROUTER_DIR}/../core/tool-registry.sh" 2>/dev/null || true
 
 set -uo pipefail
 
@@ -81,6 +82,23 @@ handler_route() {
 
     # Check if handler exists
     if ! handler_exists "${tool_type}"; then
+        # v5.3: Track unknown tools for monitoring and extensibility
+        if type tool_registry_track_unknown &>/dev/null; then
+            # Check if this is first occurrence
+            local is_first=false
+            if type tool_registry_is_first_occurrence &>/dev/null; then
+                tool_registry_is_first_occurrence "${tool_type}" && is_first=true
+            fi
+
+            # Track the unknown tool
+            tool_registry_track_unknown "${tool_type}" 2>/dev/null || true
+
+            # Notify on first occurrence (UX feature)
+            if [[ "${is_first}" == "true" ]]; then
+                wow_info "New tool detected: ${tool_type} (no handler available, passing through)"
+            fi
+        fi
+
         # No handler registered - pass through
         wow_debug "No handler for ${tool_type}, passing through"
         echo "${tool_input}"
@@ -123,6 +141,11 @@ handler_route() {
 handler_init() {
     local handler_dir="${_HANDLER_ROUTER_DIR}"
 
+    # v5.3: Initialize tool registry if available
+    if type tool_registry_init &>/dev/null; then
+        tool_registry_init 2>/dev/null || true
+    fi
+
     # Register built-in handlers (local registry)
     handler_register "Bash" "${handler_dir}/bash-handler.sh"
     handler_register "Write" "${handler_dir}/write-handler.sh"
@@ -143,6 +166,18 @@ handler_init() {
         factory_register_handler "Grep" "${handler_dir}/grep-handler.sh"
         factory_register_handler "Task" "${handler_dir}/task-handler.sh"
         factory_register_handler "WebFetch" "${handler_dir}/webfetch-handler.sh"
+    fi
+
+    # v5.3: Register known tools in tool registry
+    if type tool_registry_register_known &>/dev/null; then
+        tool_registry_register_known "Bash" "${handler_dir}/bash-handler.sh" 2>/dev/null || true
+        tool_registry_register_known "Write" "${handler_dir}/write-handler.sh" 2>/dev/null || true
+        tool_registry_register_known "Edit" "${handler_dir}/edit-handler.sh" 2>/dev/null || true
+        tool_registry_register_known "Read" "${handler_dir}/read-handler.sh" 2>/dev/null || true
+        tool_registry_register_known "Glob" "${handler_dir}/glob-handler.sh" 2>/dev/null || true
+        tool_registry_register_known "Grep" "${handler_dir}/grep-handler.sh" 2>/dev/null || true
+        tool_registry_register_known "Task" "${handler_dir}/task-handler.sh" 2>/dev/null || true
+        tool_registry_register_known "WebFetch" "${handler_dir}/webfetch-handler.sh" 2>/dev/null || true
     fi
 
     wow_debug "Handler router initialized with $(echo "${#_WOW_HANDLER_REGISTRY[@]}") handlers"
