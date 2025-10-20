@@ -3,12 +3,14 @@
 # Intercepts file read operations for safety enforcement and validation
 # Author: Chude <chude@emeke.org>
 #
-# Security Principles:
-# - Defense in Depth: Multiple validation layers
-# - Fail-Safe: Block on ambiguity or danger
-# - Privacy Protection: Prevent sensitive data access
+# Security Principles (v5.3.0):
+# - Defense in Depth: Three-tier validation (Critical/Sensitive/Tracked)
+# - Intelligent, Not Paranoid: Only block catastrophic reads
+# - Contextual Security: Strict mode for high-security environments
+# - Privacy Protection: Prevent catastrophic credential access
 # - Anti-Exfiltration: Detect excessive read patterns
 # - Audit Logging: Track all read operations
+# - Zero False Positives: Sensitive files warn, don't block (unless strict_mode)
 
 # Prevent double-sourcing
 if [[ -n "${WOW_READ_HANDLER_LOADED:-}" ]]; then
@@ -24,51 +26,72 @@ source "${_READ_HANDLER_DIR}/../core/fast-path-validator.sh"
 set -uo pipefail
 
 # ============================================================================
-# Constants - Sensitive File Patterns
+# Constants - Three-Tier Security Classification
 # ============================================================================
+#
+# TIER 1 (CRITICAL): Hard block - catastrophic security risk, never legitimate
+# TIER 2 (SENSITIVE): Warn by default, block in strict_mode - might be legitimate
+# TIER 3 (TRACKED): Allow but track - normal development files
+#
+# Philosophy: "Intelligent, Not Paranoid" + "Zero false positives on normal workflows"
 
-# CRITICAL: Files that should NEVER be read (high security risk)
+# TIER 1: CRITICAL - Files that should NEVER be read (catastrophic security risk)
+# Only files that have NO legitimate development use case
 readonly -a BLOCKED_FILES=(
-    "^/etc/shadow$"
-    "^/etc/passwd$"
-    "^/etc/sudoers"
-    "^/etc/gshadow$"
-    "^/etc/security/"
-    "^/root/"
-    "/\\.ssh/id_(rsa|dsa|ecdsa|ed25519)$"     # Private SSH keys (not .pub)
-    "/\\.aws/credentials$"
-    "/\\.config/gcloud/.*credentials"
-    "/\\.gnupg/.*\\.gpg$"
-    "/\\.bitcoin/wallet\\.dat$"
-    "/\\.ethereum/keystore/"
-    "wallet\\.dat$"
-    "^/proc/self/environ$"
-    "^/proc/.*/environ$"
+    "^/etc/shadow$"        # System password hashes - no legitimate read use
+    "^/etc/sudoers$"       # Sudo configuration - no legitimate read use
+    "^/etc/gshadow$"       # Group password hashes - no legitimate read use
 )
 
-# WARNING: Credential files (warn but allow - might be legitimate config review)
-readonly -a CREDENTIAL_FILE_PATTERNS=(
-    "\\.env$"
-    "\\.env\\.[a-z]+"
-    "credentials\\.json$"
-    "secrets?\\.ya?ml$"
-    "secrets?\\.json$"
-    "private.*\\.pem$"
-    ".*-key\\.pem$"
-    "\\.p12$"
-    "\\.pfx$"
-    "serviceAccountKey\\.json$"
+# TIER 2: SENSITIVE - Warn by default, block in strict_mode
+# Files that MIGHT be legitimately accessed during development/debugging
+# Examples: debugging auth issues, checking config, reviewing .env files
+readonly -a SENSITIVE_FILE_PATTERNS=(
+    # System files (world-readable but signals security intent)
+    "^/etc/passwd$"                            # User accounts (world-readable)
+    "^/etc/security/"                          # Security configs
+
+    # User-specific sensitive directories
+    "^/root/"                                  # Root home (might be WSL dev environment)
+    "/\\.ssh/id_(rsa|dsa|ecdsa|ed25519)$"     # Private SSH keys (might debug key issues)
+
+    # Cloud provider credentials
+    "/\\.aws/credentials$"                     # AWS (might debug auth)
+    "/\\.config/gcloud/.*credentials"          # GCP (might debug auth)
+
+    # Encryption keys
+    "/\\.gnupg/.*\\.gpg$"                      # GPG keys
+    "private.*\\.pem$"                         # Private PEM keys
+    ".*-key\\.pem$"                            # Key files
+    "\\.p12$"                                  # PKCS#12 certificates
+    "\\.pfx$"                                  # PFX certificates
+
+    # Cryptocurrency wallets
+    "/\\.bitcoin/wallet\\.dat$"                # Bitcoin wallet
+    "/\\.ethereum/keystore/"                   # Ethereum keystore
+    "wallet\\.dat$"                            # Generic wallet files
+
+    # Process environment (contains secrets)
+    "^/proc/self/environ$"                     # Current process environment
+    "^/proc/.*/environ$"                       # Process environments
+
+    # Application credentials
+    "\\.env$"                                  # Environment variables
+    "\\.env\\.[a-z]+"                          # Environment files (.env.local, etc.)
+    "credentials\\.json$"                      # Credentials files
+    "secrets?\\.ya?ml$"                        # Secrets YAML
+    "secrets?\\.json$"                         # Secrets JSON
+    "serviceAccountKey\\.json$"                # GCP service account keys
+
+    # Browser data
+    "/\\.mozilla/.*/cookies\\.sqlite"          # Firefox cookies
+    "/\\.config/google-chrome/.*/Cookies"      # Chrome cookies
+    "/\\.config/chromium/.*/Cookies"           # Chromium cookies
+    "Login\\ Data$"                            # Browser login data
 )
 
-# WARNING: Browser data (warn but allow)
-readonly -a BROWSER_DATA_PATTERNS=(
-    "/\\.mozilla/.*/cookies\\.sqlite"
-    "/\\.config/google-chrome/.*/Cookies"
-    "/\\.config/chromium/.*/Cookies"
-    "Login\\ Data$"
-)
-
-# WARNING: Database files (track for exfiltration patterns)
+# TIER 3: TRACKED - Allow but track (for pattern analysis)
+# Database files tracked for exfiltration pattern detection
 readonly -a DATABASE_PATTERNS=(
     "\\.db$"
     "\\.sqlite$"
@@ -154,32 +177,31 @@ _has_path_traversal() {
     return 1  # Safe
 }
 
-# Check if file contains credentials (warn only)
-_is_credential_file() {
+# Check if file is sensitive (TIER 2)
+# Returns 0 if sensitive, 1 if not
+_is_sensitive_file() {
     local file_path="$1"
 
-    for pattern in "${CREDENTIAL_FILE_PATTERNS[@]}"; do
-        if echo "${file_path}" | grep -qE "${pattern}"; then
-            wow_warn "⚠️  Reading credential file: ${file_path}"
-            return 0  # Is credential file
+    # Resolve to absolute path for pattern matching
+    local abs_path
+    if [[ "${file_path}" != /* ]]; then
+        abs_path="$(pwd)/${file_path}"
+    else
+        abs_path="${file_path}"
+    fi
+
+    # Normalize path (remove ./ and ../)
+    abs_path=$(realpath -m "${abs_path}" 2>/dev/null || echo "${abs_path}")
+
+    for pattern in "${SENSITIVE_FILE_PATTERNS[@]}"; do
+        if echo "${abs_path}" | grep -qE "${pattern}"; then
+            wow_warn "⚠️  SENSITIVE FILE ACCESS: ${abs_path}"
+            wow_warn "   This file may contain credentials or private data"
+            return 0  # Is sensitive
         fi
     done
 
-    return 1  # Not credential file
-}
-
-# Check if file is browser data (warn only)
-_is_browser_data() {
-    local file_path="$1"
-
-    for pattern in "${BROWSER_DATA_PATTERNS[@]}"; do
-        if echo "${file_path}" | grep -qE "${pattern}"; then
-            wow_warn "⚠️  Reading browser data: ${file_path}"
-            return 0  # Is browser data
-        fi
-    done
-
-    return 1  # Not browser data
+    return 1  # Not sensitive
 }
 
 # Check if file is database (track only)
@@ -347,27 +369,36 @@ handle_read() {
     fi
 
     # ========================================================================
-    # WARNINGS: Non-blocking checks
+    # TIER 2 CHECK: Sensitive files (warn by default, block in strict_mode)
     # ========================================================================
 
-    # Warn on credential files (but allow)
-    if _is_credential_file "${file_path}"; then
-        # v5.0.1: strict_mode enforcement
+    # Check for sensitive files (credentials, keys, private data)
+    if _is_sensitive_file "${file_path}"; then
+        # In strict_mode, sensitive files are BLOCKED
+        # Otherwise, warned but allowed (might be legitimate debugging)
         if wow_should_block "warn"; then
-            wow_error "BLOCKED: .env/credential file read in strict mode"
-            session_track_event "security_violation" "BLOCKED_ENV_READ" 2>/dev/null || true
-            return 2
-        fi
-    fi
+            wow_error "BLOCKED: Sensitive file read in strict mode"
+            wow_error "File: ${file_path}"
+            wow_error "Tip: Set strict_mode=false in config to allow with warnings"
+            session_track_event "security_violation" "BLOCKED_SENSITIVE_READ:${file_path:0:100}" 2>/dev/null || true
+            session_increment_metric "violations" 2>/dev/null || true
 
-    # Warn on browser data (but allow)
-    if _is_browser_data "${file_path}"; then
-        # v5.0.1: strict_mode enforcement
-        if wow_should_block "warn"; then
-            wow_error "BLOCKED: Browser data read in strict mode"
-            session_track_event "security_violation" "BLOCKED_BROWSER_READ" 2>/dev/null || true
+            # Update score
+            local current_score
+            current_score=$(session_get_metric "wow_score" "70")
+            session_update_metric "wow_score" "$((current_score - 5))" 2>/dev/null || true
+
             return 2
         fi
+
+        # Not in strict mode - warn but allow
+        session_track_event "sensitive_read_allowed" "${file_path:0:100}" 2>/dev/null || true
+        session_increment_metric "sensitive_file_reads" 2>/dev/null || true
+
+        # Small score penalty (less than violation)
+        local current_score
+        current_score=$(session_get_metric "wow_score" "70")
+        session_update_metric "wow_score" "$((current_score - 2))" 2>/dev/null || true
     fi
 
     # Track database reads
@@ -398,28 +429,42 @@ handle_read() {
 # ============================================================================
 
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
-    echo "WoW Read Handler - Self Test"
-    echo "============================="
+    echo "WoW Read Handler - Self Test (v5.3.0)"
+    echo "======================================"
+    echo ""
+    echo "Testing Three-Tier Security Classification..."
     echo ""
 
-    # Test 1: Blocked file detection
-    _is_blocked_file "/etc/shadow" && echo "✓ Blocked file detection works"
+    # Test TIER 1: CRITICAL (hard block)
+    echo "TIER 1 (CRITICAL) Tests:"
+    _is_blocked_file "/etc/shadow" && echo "  ✓ /etc/shadow blocked (catastrophic)"
+    _is_blocked_file "/etc/sudoers" && echo "  ✓ /etc/sudoers blocked (catastrophic)"
+    _is_blocked_file "/etc/gshadow" && echo "  ✓ /etc/gshadow blocked (catastrophic)"
+    ! _is_blocked_file "/etc/passwd" && echo "  ✓ /etc/passwd NOT in TIER 1 (moved to TIER 2)"
 
-    # Test 2: Safe file
-    ! _is_blocked_file "/home/user/code.js" && echo "✓ Safe file detection works"
+    echo ""
+    echo "TIER 2 (SENSITIVE) Tests:"
+    _is_sensitive_file "/etc/passwd" 2>/dev/null && echo "  ✓ /etc/passwd is sensitive (warn/block based on strict_mode)"
+    _is_sensitive_file ".env" 2>/dev/null && echo "  ✓ .env is sensitive"
+    _is_sensitive_file "/root/.bashrc" 2>/dev/null && echo "  ✓ /root/ files are sensitive"
+    _is_sensitive_file "$HOME/.ssh/id_rsa" 2>/dev/null && echo "  ✓ SSH private keys are sensitive"
+    _is_sensitive_file "$HOME/.aws/credentials" 2>/dev/null && echo "  ✓ AWS credentials are sensitive"
 
-    # Test 3: Path traversal detection
-    _has_path_traversal "../../etc/passwd" && echo "✓ Path traversal detection works"
+    echo ""
+    echo "TIER 3 (TRACKED) Tests:"
+    ! _is_blocked_file "/home/user/code.js" && ! _is_sensitive_file "/home/user/code.js" 2>/dev/null && echo "  ✓ Regular files allowed (TIER 3)"
 
-    # Test 4: Credential file detection
-    _is_credential_file ".env" 2>/dev/null && echo "✓ Credential file detection works"
-
-    # Test 5: Safe extension detection
-    _is_safe_extension "package.json" && echo "✓ Safe extension detection works"
-
-    # Test 6: Database file detection
-    _is_database_file "app.db" && echo "✓ Database file detection works"
+    echo ""
+    echo "Utility Function Tests:"
+    _has_path_traversal "../../etc/passwd" && echo "  ✓ Path traversal detection works"
+    _is_safe_extension "package.json" && echo "  ✓ Safe extension detection works"
+    _is_database_file "app.db" && echo "  ✓ Database file detection works"
 
     echo ""
     echo "All self-tests passed! ✓"
+    echo ""
+    echo "Configuration:"
+    echo "  - TIER 1 (CRITICAL): ${#BLOCKED_FILES[@]} patterns (hard block)"
+    echo "  - TIER 2 (SENSITIVE): ${#SENSITIVE_FILE_PATTERNS[@]} patterns (contextual)"
+    echo "  - TIER 3 (TRACKED): All others (allow + track)"
 fi

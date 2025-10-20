@@ -1,0 +1,1 @@
+../wow-system/ui/wow-quick-check.sh

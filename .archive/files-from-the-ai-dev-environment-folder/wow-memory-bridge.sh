@@ -1,0 +1,1 @@
+../wow-system/storage/wow-memory-bridge.sh

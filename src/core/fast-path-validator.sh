@@ -68,24 +68,21 @@ readonly -a FAST_PATH_SAFE_EXTENSIONS=(
     "go\\.mod$"
 )
 
-# Dangerous paths (immediate block - high confidence)
+# Dangerous paths (immediate block - TIER 1 only: catastrophic security risk)
+# v5.3.0: Aligned with three-tier system - only block truly catastrophic files
+# TIER 2 (sensitive) files are NOT blocked here - they get deep validation
 readonly -a FAST_PATH_BLOCKED_PATHS=(
-    "^/etc/"
-    "^/root/"
-    "^/sys/"
-    "^/proc/.*/environ"
-    "^/boot/"
-    "/\\.ssh/id_(rsa|dsa|ecdsa|ed25519)$"  # Private keys only
-    "/\\.aws/credentials$"
-    "/\\.config/gcloud/.*credentials"
-    "/\\.gnupg/.*\\.gpg$"
-    "wallet\\.dat$"
-    "/\\.bitcoin/"
-    "/\\.ethereum/keystore/"
+    "^/etc/shadow$"        # TIER 1: System password hashes
+    "^/etc/sudoers"        # TIER 1: Sudo configuration
+    "^/etc/gshadow$"       # TIER 1: Group password hashes
+    "^/sys/"               # System pseudo-filesystem (rarely accessed)
+    "^/boot/"              # Boot partition (rarely accessed)
 )
 
-# Suspicious patterns (needs deep check - medium confidence)
+# Suspicious patterns (needs deep check - TIER 2 candidates)
+# v5.3.0: Expanded to include all TIER 2 patterns for deep validation
 readonly -a FAST_PATH_SUSPICIOUS_PATTERNS=(
+    # Application credentials
     "\\.env$"
     "\\.env\\."
     "credentials?\\.json$"
@@ -95,6 +92,22 @@ readonly -a FAST_PATH_SUSPICIOUS_PATTERNS=(
     ".*-key\\.pem$"
     "\\.p12$"
     "\\.pfx$"
+
+    # System files that might be legitimate
+    "^/etc/"               # Most /etc files are TIER 2 (except shadow/sudoers/gshadow)
+    "^/root/"              # Root home (might be WSL dev environment)
+    "^/proc/.*/environ"    # Process environments
+
+    # User credentials and keys
+    "/\\.ssh/id_"          # SSH keys (private and public)
+    "/\\.aws/"             # AWS config/credentials
+    "/\\.config/gcloud/"   # GCP credentials
+    "/\\.gnupg/"           # GPG keys
+
+    # Cryptocurrency
+    "wallet\\.dat$"
+    "/\\.bitcoin/"
+    "/\\.ethereum/"
 )
 
 # ============================================================================

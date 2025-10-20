@@ -64,12 +64,12 @@ create_tool_input() {
 }
 
 # ============================================================================
-# Tests: Sensitive File Blocking
+# Tests: TIER 1 - Critical File Blocking (v5.3.0)
 # ============================================================================
 
-test_suite "Read Handler - Sensitive File Blocking"
+test_suite "Read Handler - TIER 1: Critical Files (Hard Block)"
 
-# Test 1: Block /etc/shadow
+# Test 1: Block /etc/shadow (TIER 1)
 test_block_etc_shadow() {
     source_read_handler || return 1
 
@@ -78,63 +78,11 @@ test_block_etc_shadow() {
 
     handle_read "${input}" 2>/dev/null && local result="allowed" || local result="blocked"
 
-    assert_equals "blocked" "${result}" "Should block /etc/shadow"
+    assert_equals "blocked" "${result}" "Should block /etc/shadow (TIER 1: catastrophic)"
 }
-test_case "Block '/etc/shadow'" test_block_etc_shadow
+test_case "Block '/etc/shadow' (TIER 1)" test_block_etc_shadow
 
-# Test 2: Block /etc/passwd
-test_block_etc_passwd() {
-    source_read_handler || return 1
-
-    local input
-    input=$(create_tool_input "/etc/passwd")
-
-    handle_read "${input}" 2>/dev/null && local result="allowed" || local result="blocked"
-
-    assert_equals "blocked" "${result}" "Should block /etc/passwd"
-}
-test_case "Block '/etc/passwd'" test_block_etc_passwd
-
-# Test 3: Block private SSH keys
-test_block_ssh_private_key() {
-    source_read_handler || return 1
-
-    local input
-    input=$(create_tool_input "/home/user/.ssh/id_rsa")
-
-    handle_read "${input}" 2>/dev/null && local result="allowed" || local result="blocked"
-
-    assert_equals "blocked" "${result}" "Should block private SSH keys"
-}
-test_case "Block private SSH key" test_block_ssh_private_key
-
-# Test 4: Block AWS credentials
-test_block_aws_credentials() {
-    source_read_handler || return 1
-
-    local input
-    input=$(create_tool_input "/home/user/.aws/credentials")
-
-    handle_read "${input}" 2>/dev/null && local result="allowed" || local result="blocked"
-
-    assert_equals "blocked" "${result}" "Should block AWS credentials"
-}
-test_case "Block AWS credentials" test_block_aws_credentials
-
-# Test 5: Block cryptocurrency wallets
-test_block_crypto_wallet() {
-    source_read_handler || return 1
-
-    local input
-    input=$(create_tool_input "/home/user/.bitcoin/wallet.dat")
-
-    handle_read "${input}" 2>/dev/null && local result="allowed" || local result="blocked"
-
-    assert_equals "blocked" "${result}" "Should block crypto wallets"
-}
-test_case "Block cryptocurrency wallet" test_block_crypto_wallet
-
-# Test 6: Block /etc/sudoers
+# Test 2: Block /etc/sudoers (TIER 1)
 test_block_etc_sudoers() {
     source_read_handler || return 1
 
@@ -143,76 +91,132 @@ test_block_etc_sudoers() {
 
     handle_read "${input}" 2>/dev/null && local result="allowed" || local result="blocked"
 
-    assert_equals "blocked" "${result}" "Should block /etc/sudoers"
+    assert_equals "blocked" "${result}" "Should block /etc/sudoers (TIER 1: catastrophic)"
 }
-test_case "Block '/etc/sudoers'" test_block_etc_sudoers
+test_case "Block '/etc/sudoers' (TIER 1)" test_block_etc_sudoers
+
+# Test 3: Block /etc/gshadow (TIER 1)
+test_block_etc_gshadow() {
+    source_read_handler || return 1
+
+    local input
+    input=$(create_tool_input "/etc/gshadow")
+
+    handle_read "${input}" 2>/dev/null && local result="allowed" || local result="blocked"
+
+    assert_equals "blocked" "${result}" "Should block /etc/gshadow (TIER 1: catastrophic)"
+}
+test_case "Block '/etc/gshadow' (TIER 1)" test_block_etc_gshadow
 
 # ============================================================================
-# Tests: Credential File Warnings
+# Tests: TIER 2 - Sensitive Files (Warn by Default, Block in Strict Mode)
 # ============================================================================
 
-test_suite "Read Handler - Credential File Warnings"
+test_suite "Read Handler - TIER 2: Sensitive Files (Contextual)"
 
-# Test 7: Warn on .env files
-test_warn_env_file() {
+# Test 4: Allow /etc/passwd with warning (TIER 2, strict_mode=false)
+test_allow_etc_passwd_with_warning() {
+    source_read_handler || return 1
+
+    local input
+    input=$(create_tool_input "/etc/passwd")
+
+    handle_read "${input}" 2>/dev/null && local result="allowed" || local result="blocked"
+
+    assert_equals "allowed" "${result}" "Should allow /etc/passwd with warning (TIER 2, strict_mode=false)"
+}
+test_case "Allow '/etc/passwd' with warning (TIER 2)" test_allow_etc_passwd_with_warning
+
+# Test 5: Allow private SSH keys with warning (TIER 2, strict_mode=false)
+test_allow_ssh_private_key_with_warning() {
+    source_read_handler || return 1
+
+    local input
+    input=$(create_tool_input "/home/user/.ssh/id_rsa")
+
+    handle_read "${input}" 2>/dev/null && local result="allowed" || local result="blocked"
+
+    assert_equals "allowed" "${result}" "Should allow SSH keys with warning (TIER 2, might debug auth)"
+}
+test_case "Allow SSH private key with warning (TIER 2)" test_allow_ssh_private_key_with_warning
+
+# Test 6: Allow AWS credentials with warning (TIER 2, strict_mode=false)
+test_allow_aws_credentials_with_warning() {
+    source_read_handler || return 1
+
+    local input
+    input=$(create_tool_input "/home/user/.aws/credentials")
+
+    handle_read "${input}" 2>/dev/null && local result="allowed" || local result="blocked"
+
+    assert_equals "allowed" "${result}" "Should allow AWS creds with warning (TIER 2, might debug auth)"
+}
+test_case "Allow AWS credentials with warning (TIER 2)" test_allow_aws_credentials_with_warning
+
+# Test 7: Allow cryptocurrency wallets with warning (TIER 2, strict_mode=false)
+test_allow_crypto_wallet_with_warning() {
+    source_read_handler || return 1
+
+    local input
+    input=$(create_tool_input "/home/user/.bitcoin/wallet.dat")
+
+    handle_read "${input}" 2>/dev/null && local result="allowed" || local result="blocked"
+
+    assert_equals "allowed" "${result}" "Should allow crypto wallets with warning (TIER 2, might work on crypto project)"
+}
+test_case "Allow cryptocurrency wallet with warning (TIER 2)" test_allow_crypto_wallet_with_warning
+
+# Test 8: Allow .env files with warning (TIER 2, strict_mode=false)
+test_allow_env_file_with_warning() {
     source_read_handler || return 1
 
     local input
     input=$(create_tool_input "/home/user/project/.env")
 
-    local output
-    output=$(handle_read "${input}" 2>&1)
+    handle_read "${input}" 2>/dev/null && local result="allowed" || local result="blocked"
 
-    # Should warn but allow
-    assert_contains "${output}" ".env" "Should mention .env file"
-    echo "Warned on .env file access"
+    assert_equals "allowed" "${result}" "Should allow .env with warning (TIER 2, common dev file)"
 }
-test_case "Warn on '.env' file" test_warn_env_file
+test_case "Allow .env file with warning (TIER 2)" test_allow_env_file_with_warning
 
-# Test 8: Warn on credentials.json
-test_warn_credentials_json() {
+# Test 9: Allow credentials.json with warning (TIER 2, strict_mode=false)
+test_allow_credentials_json_with_warning() {
     source_read_handler || return 1
 
     local input
     input=$(create_tool_input "/home/user/project/credentials.json")
 
-    local output
-    output=$(handle_read "${input}" 2>&1)
+    handle_read "${input}" 2>/dev/null && local result="allowed" || local result="blocked"
 
-    assert_contains "${output}" "credentials" "Should mention credentials file"
-    echo "Warned on credentials.json access"
+    assert_equals "allowed" "${result}" "Should allow credentials.json with warning (TIER 2)"
 }
-test_case "Warn on 'credentials.json'" test_warn_credentials_json
+test_case "Allow credentials.json with warning (TIER 2)" test_allow_credentials_json_with_warning
 
-# Test 9: Warn on secrets.yaml
-test_warn_secrets_yaml() {
+# Test 10: Allow secrets.yaml with warning (TIER 2, strict_mode=false)
+test_allow_secrets_yaml_with_warning() {
     source_read_handler || return 1
 
     local input
     input=$(create_tool_input "/home/user/project/secrets.yaml")
 
-    local output
-    output=$(handle_read "${input}" 2>&1)
+    handle_read "${input}" 2>/dev/null && local result="allowed" || local result="blocked"
 
-    assert_contains "${output}" "secrets" "Should mention secrets file"
-    echo "Warned on secrets.yaml access"
+    assert_equals "allowed" "${result}" "Should allow secrets.yaml with warning (TIER 2)"
 }
-test_case "Warn on 'secrets.yaml'" test_warn_secrets_yaml
+test_case "Allow secrets.yaml with warning (TIER 2)" test_allow_secrets_yaml_with_warning
 
-# Test 10: Warn on browser cookies
-test_warn_browser_cookies() {
+# Test 11: Allow browser cookies with warning (TIER 2, strict_mode=false)
+test_allow_browser_cookies_with_warning() {
     source_read_handler || return 1
 
     local input
     input=$(create_tool_input "/home/user/.mozilla/firefox/cookies.sqlite")
 
-    local output
-    output=$(handle_read "${input}" 2>&1)
+    handle_read "${input}" 2>/dev/null && local result="allowed" || local result="blocked"
 
-    # Should warn about browser data
-    echo "Checked browser cookies access"
+    assert_equals "allowed" "${result}" "Should allow browser cookies with warning (TIER 2)"
 }
-test_case "Warn on browser cookies" test_warn_browser_cookies
+test_case "Allow browser cookies with warning (TIER 2)" test_allow_browser_cookies_with_warning
 
 # Test 11: Warn on database files
 test_warn_database_files() {

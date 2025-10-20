@@ -1,13 +1,6 @@
-# WoW State - Session session_20251004_001850487877852_26137
-# Saved at 2025-10-03T23:18:50.507Z
+# WoW State - Session session_20251021_000141_156979
+# Saved at 2025-10-20T23:01:41.394Z
 
-_session_id=c2Vzc2lvbl8yMDI1MTAwNF8wMDE4NTA0ODc4Nzc4NTJfMjYxMzc=
-_started_at=MjAyNS0xMC0wM1QyMzoxODo1MC40ODFa
-events:1_session_started=dGltZXN0YW1wPTIwMjUtMTAtMDNUMjM6MTg6NTAuNDkzWnx0eXBlPXNlc3Npb25fc3RhcnRlZHxkYXRhPVNlc3Npb24gaW5pdGlhbGl6ZWQ=
-events:2_session_ended=dGltZXN0YW1wPTIwMjUtMTAtMDNUMjM6MTg6NTAuNTAxWnx0eXBlPXNlc3Npb25fZW5kZWR8ZGF0YT1TZXNzaW9uIHRlcm1pbmF0ZWQ=
-metrics:event_count=Mg==
-metrics:session1_data=dmFsdWUx
-session:ended_at=MjAyNS0xMC0wM1QyMzoxODo1MC40OTha
-session:started_at=MjAyNS0xMC0wM1QyMzoxODo1MC40OTBa
-session:status=ZW5kZWQ=
-session:version=MS4wLjA=
+_session_id=c2Vzc2lvbl8yMDI1MTAyMV8wMDAxNDFfMTU2OTc5
+_started_at=MjAyNS0xMC0yMFQyMzowMTo0MS4zODda
+persistent_key=cGVyc2lzdGVudF92YWx1ZQ==

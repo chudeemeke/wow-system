@@ -1,0 +1,1 @@
+../wow-system/hooks/wow-prompt-hook.sh
