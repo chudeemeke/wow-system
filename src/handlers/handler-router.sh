@@ -155,6 +155,8 @@ handler_init() {
     handler_register "Grep" "${handler_dir}/grep-handler.sh"
     handler_register "Task" "${handler_dir}/task-handler.sh"
     handler_register "WebFetch" "${handler_dir}/webfetch-handler.sh"
+    handler_register "WebSearch" "${handler_dir}/websearch-handler.sh"  # v5.4.0
+    handler_register "NotebookEdit" "${handler_dir}/notebookedit-handler.sh"  # v5.4.0
 
     # v5.0: Also register in Factory if available
     if type factory_register_handler &>/dev/null; then
@@ -166,6 +168,8 @@ handler_init() {
         factory_register_handler "Grep" "${handler_dir}/grep-handler.sh"
         factory_register_handler "Task" "${handler_dir}/task-handler.sh"
         factory_register_handler "WebFetch" "${handler_dir}/webfetch-handler.sh"
+        factory_register_handler "WebSearch" "${handler_dir}/websearch-handler.sh"  # v5.4.0
+        factory_register_handler "NotebookEdit" "${handler_dir}/notebookedit-handler.sh"  # v5.4.0
     fi
 
     # v5.3: Register known tools in tool registry
@@ -178,6 +182,8 @@ handler_init() {
         tool_registry_register_known "Grep" "${handler_dir}/grep-handler.sh" 2>/dev/null || true
         tool_registry_register_known "Task" "${handler_dir}/task-handler.sh" 2>/dev/null || true
         tool_registry_register_known "WebFetch" "${handler_dir}/webfetch-handler.sh" 2>/dev/null || true
+        tool_registry_register_known "WebSearch" "${handler_dir}/websearch-handler.sh" 2>/dev/null || true  # v5.4.0
+        tool_registry_register_known "NotebookEdit" "${handler_dir}/notebookedit-handler.sh" 2>/dev/null || true  # v5.4.0
     fi
 
     wow_debug "Handler router initialized with $(echo "${#_WOW_HANDLER_REGISTRY[@]}") handlers"
