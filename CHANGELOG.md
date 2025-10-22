@@ -53,6 +53,57 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Performance: Efficient with result caching
   - Security: No sensitive data exposure
 
+#### Phase B3: Pattern Recognition & Custom Rule DSL (Complete)
+- **Pattern Detector** (src/analytics/patterns.sh - 450 LOC)
+  - Detects repeated security violations across sessions
+  - Minimum 3 occurrences to qualify as pattern
+  - Confidence scoring: critical/high/medium/low
+  - Pattern signatures for violation tracking
+  - Generates actionable recommendations
+  - API: analytics_pattern_detect, get_top, get_recommendations, get_summary
+
+- **Custom Rule DSL** (src/rules/dsl.sh - 400 LOC)
+  - Simple config format: rule name, pattern regex, action type
+  - Supports allow/warn/block actions with severity levels
+  - Rule validation before execution
+  - Pattern matching with grep -E
+  - Priority: Custom rules checked before built-in patterns
+  - API: rule_dsl_load_file, match, get_action, get_message, get_severity
+  - Example rules generator (5 sample rules)
+
+- **Custom Rule Helper** (src/handlers/custom-rule-helper.sh - 150 LOC)
+  - DRY principle: Single implementation for all handlers
+  - Action codes: BLOCK=2, WARN=1, ALLOW=0, NO_MATCH=99
+  - Score updates and metrics tracking
+  - API: custom_rule_check, custom_rule_apply, custom_rule_available
+
+- **Handler Integration** (7 handlers modified)
+  - bash-handler.sh: Custom rules checked before built-in patterns
+  - write-handler.sh: Path and content validation (first 1000 chars)
+  - edit-handler.sh: Path, old_string, new_string validation
+  - read-handler.sh: Custom rules before fast-path optimization
+  - webfetch-handler.sh: URL and prompt validation
+  - websearch-handler.sh: Query validation
+  - handler-router.sh: Auto-load custom rules from WOW_HOME/custom-rules.conf
+
+- **UX Integration**
+  - display.sh: Pattern insights in enhanced session banner
+  - Optional pattern summary line when patterns detected
+  - Graceful fallback if patterns module unavailable
+
+- **Integration Flow**
+  1. handler-router.sh loads custom rules at startup
+  2. Handlers call custom_rule_check() before built-in checks
+  3. Custom rules can allow/warn/block operations
+  4. Pattern detector analyzes violations across sessions
+  5. UX displays pattern insights in session banner
+
+- **Testing**
+  - Pattern detection: 5 functions self-tested
+  - Custom Rule DSL: 6 operations self-tested
+  - Custom Rule Helper: 5 constants validated
+  - All modules pass self-tests successfully
+
 ### Changed
 - **Three-Tier Security Refactor** (read-handler.sh)
   - TIER 1 reduced to 3 truly critical files (was 15)
