@@ -1,8 +1,8 @@
-# WoW System v5.0.1
+# WoW System v5.4.0
 
 **Ways of Working Enforcement for Claude Code**
 
-Production-grade safety and behavior enforcement system that integrates with Claude Code to prevent dangerous operations, enforce best practices, and track quality metrics. Now with real-time frustration detection, secure email alerts, and automated credential security.
+Production-grade safety and behavior enforcement system that integrates with Claude Code to prevent dangerous operations, enforce best practices, and track quality metrics. Features multi-session analytics, pattern recognition, custom user-defined rules, and comprehensive security handlers for all Claude Code tools.
 
 ---
 
@@ -12,17 +12,33 @@ The WoW (Ways of Working) System is a comprehensive security and quality enforce
 
 ### Key Features
 
-- 🛡️ **Security Enforcement**: Blocks dangerous commands (rm -rf /, system file writes, etc.)
-- 📊 **Behavioral Scoring**: Tracks quality with a 0-100 score that adapts to your behavior
-- 🎯 **Risk Assessment**: Multi-factor analysis of every operation
+#### Security & Enforcement (Phase E + B1)
+- 🛡️ **10 Security Handlers**: Bash, Write, Edit, Read, Glob, Grep, Task, WebFetch, WebSearch, NotebookEdit
+- 🚫 **Comprehensive Protection**: Blocks dangerous commands, system file access, SSRF attacks, code injection, PII exposure
+- 🎯 **Three-Tier Security**: Critical (hard block), Sensitive (contextual), Tracked (monitored)
 - 🔄 **Auto-Fixing**: Automatically adds author to git commits and removes emojis
-- 📈 **Metrics Tracking**: Comprehensive session statistics and trend analysis
-- 🎨 **Visual Feedback**: Color-coded alerts and progress indicators
-- ⚙️ **Configurable**: Customizable rules and thresholds
+
+#### Intelligence & Analytics (Phase B2 + B3)
+- 📊 **Multi-Session Analytics**: Performance trends, percentile rankings, historical comparison
+- 🔍 **Pattern Recognition**: Detects repeated violations and provides actionable recommendations
+- ⚙️ **Custom Rule DSL**: User-defined security rules with allow/warn/block actions
+- 📈 **Behavioral Scoring**: Adaptive 0-100 score with natural decay and reward system
+
+#### User Experience
+- 🎨 **Enhanced UX**: Real-time analytics insights, trend indicators (↑/→/↓), pattern summaries
+- 📉 **Performance**: <10ms operation latency, aggressive caching, fast-path optimization
 - 🎤 **Capture Engine**: Real-time frustration detection with intelligent pattern analysis
 - 📧 **Email Alerts**: Secure email notifications with OS keychain credential storage
-- 🔐 **Credential Security**: Real-time credential detection, redaction, and secure storage
-- 📚 **Documentation Automation**: Powered by docTruth - keeps documentation perpetually synchronized with code reality
+
+#### Security Features
+- 🔐 **Credential Security**: Real-time detection, redaction, secure OS keychain storage
+- 🛡️ **Defense in Depth**: Multiple validation layers across all tool operations
+- 🔒 **Privacy-First**: No sensitive data exposure, secure storage, fail-safe design
+
+#### Developer Experience
+- 📚 **Documentation Automation**: Powered by docTruth - perpetually synchronized documentation
+- ⚙️ **Highly Configurable**: Customizable thresholds, rules, and enforcement modes
+- 🧪 **Comprehensive Testing**: 207+ tests across all modules (100% pass rate)
 
 ---
 
@@ -41,11 +57,29 @@ wow-system/
 │   │   ├── session-manager.sh # Session lifecycle
 │   │   └── orchestrator.sh    # Module loader (Facade)
 │   │
-│   ├── handlers/          # Tool interception
-│   │   ├── bash-handler.sh    # Bash command validation
-│   │   ├── write-handler.sh   # File write safety
-│   │   ├── edit-handler.sh    # File edit validation
-│   │   └── handler-router.sh  # Strategy pattern router
+│   ├── handlers/          # Tool interception (10 handlers)
+│   │   ├── bash-handler.sh         # Bash command validation
+│   │   ├── write-handler.sh        # File write safety
+│   │   ├── edit-handler.sh         # File edit validation
+│   │   ├── read-handler.sh         # File read protection
+│   │   ├── glob-handler.sh         # File search safety
+│   │   ├── grep-handler.sh         # Content search safety
+│   │   ├── task-handler.sh         # Agent task validation
+│   │   ├── webfetch-handler.sh     # Web fetch SSRF protection
+│   │   ├── websearch-handler.sh    # Search query PII protection
+│   │   ├── notebookedit-handler.sh # Jupyter notebook security
+│   │   ├── custom-rule-helper.sh   # Custom rule integration
+│   │   └── handler-router.sh       # Strategy pattern router
+│   │
+│   ├── analytics/         # Multi-session intelligence (v5.4.0)
+│   │   ├── collector.sh       # Session data collection
+│   │   ├── aggregator.sh      # Statistical calculations
+│   │   ├── trends.sh          # Time-series trend analysis
+│   │   ├── comparator.sh      # Historical performance comparison
+│   │   └── patterns.sh        # Pattern recognition engine
+│   │
+│   ├── rules/             # Custom rule DSL (v5.4.0)
+│   │   └── dsl.sh             # User-defined security rules
 │   │
 │   ├── engines/           # Analysis & scoring
 │   │   ├── scoring-engine.sh  # Behavioral scoring
@@ -61,7 +95,7 @@ wow-system/
 │   │   └── wow-capture.sh     # Manual frustration capture
 │   │
 │   └── ui/                # User interface
-│       └── display.sh         # Banners, feedback, metrics
+│       └── display.sh         # Banners, feedback, analytics insights
 │
 ├── hooks/                 # Claude Code integration
 │   └── user-prompt-submit.sh  # Main interception hook
