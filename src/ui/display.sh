@@ -20,6 +20,14 @@ _DISPLAY_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${_DISPLAY_DIR}/../core/utils.sh"
 source "${_DISPLAY_DIR}/../core/session-manager.sh"
 
+# Optional: Analytics modules (fail gracefully if not available)
+if [[ -f "${_DISPLAY_DIR}/../analytics/trends.sh" ]]; then
+    source "${_DISPLAY_DIR}/../analytics/trends.sh" 2>/dev/null || true
+fi
+if [[ -f "${_DISPLAY_DIR}/../analytics/comparator.sh" ]]; then
+    source "${_DISPLAY_DIR}/../analytics/comparator.sh" 2>/dev/null || true
+fi
+
 set -uo pipefail
 
 # ============================================================================
@@ -111,7 +119,48 @@ display_session_banner() {
     # Status indicator
     local status_indicator="${C_GREEN}✅ Active${C_RESET}"
 
-    cat <<EOF
+    # Get analytics insights (if available)
+    local analytics_trend=""
+    local analytics_comparison=""
+    local analytics_available=0
+
+    if type analytics_trends_get_summary &>/dev/null; then
+        analytics_trend=$(analytics_trends_get_summary 2>/dev/null || echo "")
+        [[ -n "${analytics_trend}" ]] && analytics_available=1
+    fi
+
+    if type analytics_compare_summary &>/dev/null && [[ ${analytics_available} -eq 1 ]]; then
+        analytics_comparison=$(analytics_compare_summary "wow_score" "${score}" 2>/dev/null || echo "")
+    fi
+
+    # Build banner
+    if [[ ${analytics_available} -eq 1 ]] && [[ -n "${analytics_trend}" ]]; then
+        # Enhanced banner with analytics
+        cat <<EOF
+
+${C_BOLD}${C_CYAN}╔══════════════════════════════════════════════════════════╗${C_RESET}
+${C_BOLD}${C_CYAN}║  WoW System v${version} - Ways of Working Enforcement   ║${C_RESET}
+${C_BOLD}${C_CYAN}║  Status: ${status_indicator}                                        ${C_BOLD}${C_CYAN}║${C_RESET}
+${C_BOLD}${C_CYAN}╠══════════════════════════════════════════════════════════╣${C_RESET}
+${C_BOLD}║  Configuration:                                          ║${C_RESET}
+${C_BOLD}║  • Enforcement: ${C_GREEN}${enforcement_status}${C_RESET}${C_BOLD}                                  ║${C_RESET}
+${C_BOLD}║  • Fast Path: ${C_GREEN}${fast_path_status}${C_RESET}${C_BOLD} (70-80% faster)                    ║${C_RESET}
+${C_BOLD}║  • Handlers: ${C_CYAN}${handlers_count}${C_RESET}${C_BOLD} loaded (Bash, Write, Edit, Read,   ║${C_RESET}
+${C_BOLD}║              Glob, Grep, Task, WebFetch)                 ║${C_RESET}
+${C_BOLD}║  • Scoring: ${C_GREEN}Enabled${C_RESET}${C_BOLD} (warn=50, block=30)               ║${C_RESET}
+${C_BOLD}║                                                          ║${C_RESET}
+${C_BOLD}║  Session Info:                                           ║${C_RESET}
+${C_BOLD}║  • Started: ${C_GRAY}${start_time}${C_RESET}${C_BOLD}                          ║${C_RESET}
+${C_BOLD}║  • Location: ${C_YELLOW}${location:0:43}${C_RESET}${C_BOLD}                    ║${C_RESET}
+${C_BOLD}║  • Score: ${C_CYAN}${score}/100${C_RESET}${C_BOLD}                                        ║${C_RESET}
+${C_BOLD}║  • Trend: ${C_GRAY}${analytics_trend:0:40}${C_RESET}${C_BOLD}    ║${C_RESET}
+${C_BOLD}║  • Performance: ${C_GRAY}${analytics_comparison:0:35}${C_RESET}${C_BOLD}    ║${C_RESET}
+${C_BOLD}${C_CYAN}╚══════════════════════════════════════════════════════════╝${C_RESET}
+
+EOF
+    else
+        # Standard banner without analytics
+        cat <<EOF
 
 ${C_BOLD}${C_CYAN}╔══════════════════════════════════════════════════════════╗${C_RESET}
 ${C_BOLD}${C_CYAN}║  WoW System v${version} - Ways of Working Enforcement   ║${C_RESET}
@@ -131,6 +180,7 @@ ${C_BOLD}║  • Initial Score: ${C_CYAN}${score}/100${C_RESET}${C_BOLD}       
 ${C_BOLD}${C_CYAN}╚══════════════════════════════════════════════════════════╝${C_RESET}
 
 EOF
+    fi
 }
 
 # Display minimal status line
