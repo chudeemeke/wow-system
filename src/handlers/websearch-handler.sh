@@ -21,6 +21,7 @@ readonly WOW_WEBSEARCH_HANDLER_LOADED=1
 # Source dependencies
 _WEBSEARCH_HANDLER_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${_WEBSEARCH_HANDLER_DIR}/../core/utils.sh"
+source "${_WEBSEARCH_HANDLER_DIR}/custom-rule-helper.sh" 2>/dev/null || true
 
 set -uo pipefail
 
@@ -297,6 +298,33 @@ handle_websearch() {
     # Track metrics
     session_increment_metric "websearch_requests" 2>/dev/null || true
     session_track_event "websearch_request" "query=${query:0:100}" 2>/dev/null || true
+
+    # ========================================================================
+    # CUSTOM RULES CHECK (v5.4.0)
+    # ========================================================================
+
+    if custom_rule_available; then
+        # Check query
+        custom_rule_check "${query}" "WebSearch"
+        local rule_result=$?
+
+        if [[ ${rule_result} -ne ${CUSTOM_RULE_NO_MATCH} ]]; then
+            custom_rule_apply "${rule_result}" "WebSearch"
+
+            case "${rule_result}" in
+                ${CUSTOM_RULE_BLOCK})
+                    return 2
+                    ;;
+                ${CUSTOM_RULE_ALLOW})
+                    echo "${tool_input}"
+                    return 0
+                    ;;
+                ${CUSTOM_RULE_WARN})
+                    # Continue to built-in checks
+                    ;;
+            esac
+        fi
+    fi
 
     # ========================================================================
     # TIER 1 CHECK: Critical patterns (hard block)

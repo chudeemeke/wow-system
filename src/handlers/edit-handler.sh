@@ -21,6 +21,7 @@ readonly WOW_EDIT_HANDLER_LOADED=1
 _EDIT_HANDLER_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${_EDIT_HANDLER_DIR}/../core/utils.sh"
 source "${_EDIT_HANDLER_DIR}/../core/version-detector.sh" 2>/dev/null || true
+source "${_EDIT_HANDLER_DIR}/custom-rule-helper.sh" 2>/dev/null || true
 
 set -uo pipefail
 
@@ -289,6 +290,49 @@ handle_edit() {
     # Track metrics
     session_increment_metric "file_edits" 2>/dev/null || true
     session_track_event "file_edit" "path=${file_path:0:100}" 2>/dev/null || true
+
+    # ========================================================================
+    # CUSTOM RULES CHECK (v5.4.0)
+    # ========================================================================
+
+    if custom_rule_available; then
+        # Check path, old_string, and new_string
+        custom_rule_check "${file_path}" "Edit"
+        local path_result=$?
+
+        custom_rule_check "${old_string:0:500}" "Edit"
+        local old_result=$?
+
+        custom_rule_check "${new_string:0:500}" "Edit"
+        local new_result=$?
+
+        # Take most restrictive action
+        local rule_result=${CUSTOM_RULE_NO_MATCH}
+        for result in ${path_result} ${old_result} ${new_result}; do
+            if [[ ${result} -ne ${CUSTOM_RULE_NO_MATCH} ]]; then
+                if [[ ${rule_result} -eq ${CUSTOM_RULE_NO_MATCH} ]] || [[ ${result} -lt ${rule_result} ]]; then
+                    rule_result=${result}
+                fi
+            fi
+        done
+
+        if [[ ${rule_result} -ne ${CUSTOM_RULE_NO_MATCH} ]]; then
+            custom_rule_apply "${rule_result}" "Edit"
+
+            case "${rule_result}" in
+                ${CUSTOM_RULE_BLOCK})
+                    return 2
+                    ;;
+                ${CUSTOM_RULE_ALLOW})
+                    echo "${tool_input}"
+                    return 0
+                    ;;
+                ${CUSTOM_RULE_WARN})
+                    # Continue to built-in checks
+                    ;;
+            esac
+        fi
+    fi
 
     # ========================================================================
     # ENFORCEMENT CHECK: File Operations Limit

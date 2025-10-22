@@ -20,6 +20,7 @@ readonly WOW_WEBFETCH_HANDLER_LOADED=1
 # Source dependencies
 _WEBFETCH_HANDLER_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${_WEBFETCH_HANDLER_DIR}/../core/utils.sh"
+source "${_WEBFETCH_HANDLER_DIR}/custom-rule-helper.sh" 2>/dev/null || true
 
 set -uo pipefail
 
@@ -418,6 +419,44 @@ handle_webfetch() {
     # Track metrics
     session_increment_metric "webfetch_requests" 2>/dev/null || true
     session_track_event "webfetch_request" "url=${url:0:100}" 2>/dev/null || true
+
+    # ========================================================================
+    # CUSTOM RULES CHECK (v5.4.0)
+    # ========================================================================
+
+    if custom_rule_available; then
+        # Check URL and prompt
+        custom_rule_check "${url}" "WebFetch"
+        local url_result=$?
+
+        custom_rule_check "${prompt:0:500}" "WebFetch"
+        local prompt_result=$?
+
+        # Take more restrictive action
+        local rule_result=${url_result}
+        if [[ ${prompt_result} -ne ${CUSTOM_RULE_NO_MATCH} ]]; then
+            if [[ ${rule_result} -eq ${CUSTOM_RULE_NO_MATCH} ]] || [[ ${prompt_result} -lt ${rule_result} ]]; then
+                rule_result=${prompt_result}
+            fi
+        fi
+
+        if [[ ${rule_result} -ne ${CUSTOM_RULE_NO_MATCH} ]]; then
+            custom_rule_apply "${rule_result}" "WebFetch"
+
+            case "${rule_result}" in
+                ${CUSTOM_RULE_BLOCK})
+                    return 2
+                    ;;
+                ${CUSTOM_RULE_ALLOW})
+                    echo "${tool_input}"
+                    return 0
+                    ;;
+                ${CUSTOM_RULE_WARN})
+                    # Continue to built-in checks
+                    ;;
+            esac
+        fi
+    fi
 
     # ========================================================================
     # SECURITY CHECK: URL Validation

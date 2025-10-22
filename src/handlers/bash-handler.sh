@@ -18,6 +18,7 @@ readonly WOW_BASH_HANDLER_LOADED=1
 # Source dependencies
 _BASH_HANDLER_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${_BASH_HANDLER_DIR}/../core/utils.sh"
+source "${_BASH_HANDLER_DIR}/custom-rule-helper.sh" 2>/dev/null || true
 
 set -uo pipefail
 
@@ -219,6 +220,33 @@ handle_bash() {
     # Track metrics
     session_increment_metric "bash_commands" 2>/dev/null || true
     session_track_event "bash_command" "command=${command:0:100}" 2>/dev/null || true
+
+    # ========================================================================
+    # CUSTOM RULES CHECK (v5.4.0)
+    # ========================================================================
+
+    if custom_rule_available; then
+        custom_rule_check "${command}" "Bash"
+        local rule_result=$?
+
+        if [[ ${rule_result} -ne ${CUSTOM_RULE_NO_MATCH} ]]; then
+            custom_rule_apply "${rule_result}" "Bash"
+
+            # Handle action
+            case "${rule_result}" in
+                ${CUSTOM_RULE_BLOCK})
+                    return 2
+                    ;;
+                ${CUSTOM_RULE_ALLOW})
+                    echo "${tool_input}"
+                    return 0
+                    ;;
+                ${CUSTOM_RULE_WARN})
+                    # Continue to built-in checks
+                    ;;
+            esac
+        fi
+    fi
 
     # ========================================================================
     # ENFORCEMENT CHECK: Command Limit

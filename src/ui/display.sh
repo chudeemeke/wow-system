@@ -27,6 +27,9 @@ fi
 if [[ -f "${_DISPLAY_DIR}/../analytics/comparator.sh" ]]; then
     source "${_DISPLAY_DIR}/../analytics/comparator.sh" 2>/dev/null || true
 fi
+if [[ -f "${_DISPLAY_DIR}/../analytics/patterns.sh" ]]; then
+    source "${_DISPLAY_DIR}/../analytics/patterns.sh" 2>/dev/null || true
+fi
 
 set -uo pipefail
 
@@ -133,6 +136,12 @@ display_session_banner() {
         analytics_comparison=$(analytics_compare_summary "wow_score" "${score}" 2>/dev/null || echo "")
     fi
 
+    # Get pattern insights (v5.4.0 - Phase B3)
+    local pattern_summary=""
+    if type analytics_pattern_get_summary &>/dev/null; then
+        pattern_summary=$(analytics_pattern_get_summary 2>/dev/null || echo "")
+    fi
+
     # Build banner
     if [[ ${analytics_available} -eq 1 ]] && [[ -n "${analytics_trend}" ]]; then
         # Enhanced banner with analytics
@@ -155,6 +164,7 @@ ${C_BOLD}║  • Location: ${C_YELLOW}${location:0:43}${C_RESET}${C_BOLD}      
 ${C_BOLD}║  • Score: ${C_CYAN}${score}/100${C_RESET}${C_BOLD}                                        ║${C_RESET}
 ${C_BOLD}║  • Trend: ${C_GRAY}${analytics_trend:0:40}${C_RESET}${C_BOLD}    ║${C_RESET}
 ${C_BOLD}║  • Performance: ${C_GRAY}${analytics_comparison:0:35}${C_RESET}${C_BOLD}    ║${C_RESET}
+$(if [[ -n "${pattern_summary}" ]]; then echo "${C_BOLD}║  • Patterns: ${C_GRAY}${pattern_summary:0:38}${C_RESET}${C_BOLD}      ║${C_RESET}"; fi)
 ${C_BOLD}${C_CYAN}╚══════════════════════════════════════════════════════════╝${C_RESET}
 
 EOF

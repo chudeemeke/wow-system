@@ -20,6 +20,7 @@ readonly WOW_WRITE_HANDLER_LOADED=1
 _WRITE_HANDLER_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${_WRITE_HANDLER_DIR}/../core/utils.sh"
 source "${_WRITE_HANDLER_DIR}/../core/version-detector.sh" 2>/dev/null || true
+source "${_WRITE_HANDLER_DIR}/custom-rule-helper.sh" 2>/dev/null || true
 
 set -uo pipefail
 
@@ -314,6 +315,43 @@ handle_write() {
     # Track metrics
     session_increment_metric "file_writes" 2>/dev/null || true
     session_track_event "file_write" "path=${file_path:0:100}" 2>/dev/null || true
+
+    # ========================================================================
+    # CUSTOM RULES CHECK (v5.4.0)
+    # ========================================================================
+
+    if custom_rule_available; then
+        # Check path
+        custom_rule_check "${file_path}" "Write"
+        local path_result=$?
+
+        # Check content (first 1000 chars)
+        custom_rule_check "${content:0:1000}" "Write"
+        local content_result=$?
+
+        # Take more restrictive action
+        local rule_result=${path_result}
+        if [[ ${content_result} -lt ${path_result} ]]; then
+            rule_result=${content_result}
+        fi
+
+        if [[ ${rule_result} -ne ${CUSTOM_RULE_NO_MATCH} ]]; then
+            custom_rule_apply "${rule_result}" "Write"
+
+            case "${rule_result}" in
+                ${CUSTOM_RULE_BLOCK})
+                    return 2
+                    ;;
+                ${CUSTOM_RULE_ALLOW})
+                    echo "${tool_input}"
+                    return 0
+                    ;;
+                ${CUSTOM_RULE_WARN})
+                    # Continue to built-in checks
+                    ;;
+            esac
+        fi
+    fi
 
     # ========================================================================
     # ENFORCEMENT CHECK: File Operations Limit

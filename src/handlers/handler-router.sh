@@ -186,6 +186,25 @@ handler_init() {
         tool_registry_register_known "NotebookEdit" "${handler_dir}/notebookedit-handler.sh" 2>/dev/null || true  # v5.4.0
     fi
 
+    # v5.4.0: Load custom rules if available
+    local dsl_path="${handler_dir}/../rules/dsl.sh"
+    if [[ -f "${dsl_path}" ]]; then
+        source "${dsl_path}" 2>/dev/null || true
+
+        if type rule_dsl_init &>/dev/null; then
+            rule_dsl_init
+
+            # Try to load custom rules from default location
+            local rules_file="${WOW_HOME}/custom-rules.conf"
+            if [[ -f "${rules_file}" ]]; then
+                if rule_dsl_load_file "${rules_file}"; then
+                    local rule_count=$(rule_dsl_count)
+                    wow_debug "Loaded ${rule_count} custom rules from ${rules_file}"
+                fi
+            fi
+        fi
+    fi
+
     wow_debug "Handler router initialized with $(echo "${#_WOW_HANDLER_REGISTRY[@]}") handlers"
 }
 

@@ -22,6 +22,7 @@ readonly WOW_READ_HANDLER_LOADED=1
 _READ_HANDLER_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${_READ_HANDLER_DIR}/../core/utils.sh"
 source "${_READ_HANDLER_DIR}/../core/fast-path-validator.sh"
+source "${_READ_HANDLER_DIR}/custom-rule-helper.sh" 2>/dev/null || true
 
 set -uo pipefail
 
@@ -302,6 +303,34 @@ handle_read() {
         # Don't block - might be a valid edge case
         echo "${tool_input}"
         return 0
+    fi
+
+    # ========================================================================
+    # CUSTOM RULES CHECK (v5.4.0)
+    # ========================================================================
+
+    if custom_rule_available; then
+        custom_rule_check "${file_path}" "Read"
+        local rule_result=$?
+
+        if [[ ${rule_result} -ne ${CUSTOM_RULE_NO_MATCH} ]]; then
+            custom_rule_apply "${rule_result}" "Read"
+
+            case "${rule_result}" in
+                ${CUSTOM_RULE_BLOCK})
+                    session_increment_metric "file_reads" 2>/dev/null || true
+                    return 2
+                    ;;
+                ${CUSTOM_RULE_ALLOW})
+                    session_increment_metric "file_reads" 2>/dev/null || true
+                    echo "${tool_input}"
+                    return 0
+                    ;;
+                ${CUSTOM_RULE_WARN})
+                    # Continue to fast-path and built-in checks
+                    ;;
+            esac
+        fi
     fi
 
     # ========================================================================
