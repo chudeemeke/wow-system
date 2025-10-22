@@ -1,0 +1,121 @@
+rules:
+  # ============================================================================
+  # CRITICAL: Command Injection Vulnerabilities
+  # ============================================================================
+
+  - id: bash-unquoted-variable-in-command
+    pattern-either:
+      - pattern: DANGEROUS_CMD $VAR
+      - pattern: DANGER_CMD $VAR
+      - pattern: eval $VAR
+      - pattern: exec $VAR
+    message: |
+      Unquoted variable in dangerous command can lead to command injection.
+      Always quote variables in commands.
+    severity: ERROR
+    languages: [bash]
+
+  - id: bash-eval-usage
+    pattern: eval ...
+    message: |
+      eval is dangerous and can lead to code injection.
+      Avoid eval or ensure input is thoroughly validated.
+    severity: ERROR
+    languages: [bash]
+
+  # ============================================================================
+  # CRITICAL: Path Traversal
+  # ============================================================================
+
+  - id: bash-path-traversal-risk
+    pattern-regex: '\.\\./'
+    message: |
+      Path traversal pattern detected.
+      Ensure proper validation before using relative paths.
+    severity: WARNING
+    languages: [bash]
+    paths:
+      include:
+        - "*.sh"
+      exclude:
+        - "**/test-*.sh"
+
+  # ============================================================================
+  # CRITICAL: Credential Exposure
+  # ============================================================================
+
+  - id: bash-hardcoded-credential
+    pattern-either:
+      - pattern: CREDENTIAL_VAR="..."
+      - pattern: API_KEY="..."
+      - pattern: SECRET="..."
+    message: |
+      Hardcoded credential detected.
+      Use environment variables or secure storage instead.
+    severity: ERROR
+    languages: [bash]
+
+  # ============================================================================
+  # HIGH: Handler-Specific Patterns (WoW System)
+  # ============================================================================
+
+  - id: wow-handler-missing-double-source-guard
+    pattern-regex: 'handle_\w+\(\)\s*\{(?!.*WOW_\w+_HANDLER_LOADED)'
+    message: |
+      Handler missing double-sourcing protection guard.
+      Add WOW_HANDLER_LOADED check at top of file.
+    severity: WARNING
+    languages: [bash]
+    paths:
+      include:
+        - "src/handlers/*-handler.sh"
+
+  # ============================================================================
+  # MEDIUM: Validation Best Practices
+  # ============================================================================
+
+  - id: bash-missing-error-handling
+    pattern-regex: 'set\s+-[^e]*$'
+    message: |
+      Missing error handling (set -e or set -uo pipefail).
+      Consider adding for safer scripts.
+    severity: INFO
+    languages: [bash]
+
+  # ============================================================================
+  # WoW-Specific: Hook Safety
+  # ============================================================================
+
+  - id: wow-hook-blocking-operation
+    pattern-regex: 'sleep\s+[0-9]+'
+    message: |
+      Blocking operation in hook (sleep detected).
+      Hooks must complete in under 100ms.
+    severity: ERROR
+    languages: [bash]
+    paths:
+      include:
+        - "hooks/*.sh"
+
+  - id: wow-hook-exit-code-leak
+    pattern-regex: 'exit\s+[3-9]'
+    message: |
+      Invalid hook exit code (must be 0 or 1).
+      0 = allow, 1 = block.
+    severity: ERROR
+    languages: [bash]
+    paths:
+      include:
+        - "hooks/*.sh"
+
+  # ============================================================================
+  # WoW-Specific: Session Data Safety
+  # ============================================================================
+
+  - id: wow-unsafe-metric-access
+    pattern-regex: 'cat.*session.*metrics\.json'
+    message: |
+      Direct file access to metrics.json.
+      Use session_get_metric() for safe access.
+    severity: WARNING
+    languages: [bash]

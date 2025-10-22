@@ -52,7 +52,8 @@ _email_filter_sensitive() {
 # Clear sensitive variable from memory
 _email_clear_var() {
     local var_name="$1"
-    eval "$var_name='CLEARED'"
+    # Use declare instead of eval (safer, no code injection risk)
+    declare -g "$var_name"='CLEARED'
     unset "$var_name"
 }
 
