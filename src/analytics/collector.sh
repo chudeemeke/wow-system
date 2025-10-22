@@ -107,6 +107,7 @@ _collector_scan_internal() {
     # Check if directory exists and is accessible
     if ! _collector_dir_accessible; then
         wow_debug "Sessions directory not accessible: ${sessions_dir}"
+        _COLLECTOR_CACHE_VALID=1
         return 0
     fi
 
@@ -119,7 +120,6 @@ _collector_scan_internal() {
     # Validate and collect sessions
     local session_dir
     local session_id
-    local count=0
 
     while IFS= read -r session_dir; do
         [[ -z "${session_dir}" ]] && continue
@@ -130,7 +130,6 @@ _collector_scan_internal() {
             if _collector_validate_metrics "${session_dir}/metrics.json"; then
                 session_id=$(basename "${session_dir}")
                 _COLLECTOR_SESSION_LIST+=("${session_id}")
-                ((count++))
             else
                 wow_debug "Skipping session with invalid metrics: ${session_dir}"
             fi
@@ -140,8 +139,6 @@ _collector_scan_internal() {
     done <<< "${session_dirs}"
 
     _COLLECTOR_CACHE_VALID=1
-
-    echo "${count}"
 }
 
 # ============================================================================
@@ -168,9 +165,19 @@ analytics_collector_init() {
 # Public: Scanning
 # ============================================================================
 
-# Scan all sessions and return count
+# Scan all sessions and populate cache
 analytics_collector_scan() {
     _collector_scan_internal
+}
+
+# Get count of sessions in cache
+analytics_collector_count() {
+    # Ensure cache is valid
+    if [[ ${_COLLECTOR_CACHE_VALID} -eq 0 ]]; then
+        _collector_scan_internal
+    fi
+
+    echo "${#_COLLECTOR_SESSION_LIST[@]}"
 }
 
 # ============================================================================

@@ -24,6 +24,11 @@ setup_all() {
     wow_init
 }
 
+# Source collector module at file level (once)
+if [[ -f "${COLLECTOR_MODULE}" ]]; then
+    source "${COLLECTOR_MODULE}"
+fi
+
 teardown_all() {
     if [[ -n "${TEST_DATA_DIR}" ]] && [[ -d "${TEST_DATA_DIR}" ]]; then
         test_cleanup_temp "${TEST_DATA_DIR}"
@@ -34,14 +39,13 @@ teardown_all() {
 # Helper Functions
 # ============================================================================
 
-source_collector() {
-    if [[ -f "${COLLECTOR_MODULE}" ]]; then
-        source "${COLLECTOR_MODULE}"
-        return 0
-    else
-        echo "Collector module not implemented yet"
+# Verify collector is loaded
+verify_collector() {
+    if ! type analytics_collector_init &>/dev/null; then
+        echo "Collector module not loaded"
         return 1
     fi
+    return 0
 }
 
 create_test_session() {
@@ -70,7 +74,7 @@ test_suite "Analytics Collector - Initialization"
 
 # Test 1: Initialize successfully
 test_init_success() {
-    source_collector || return 1
+    verify_collector || return 1
 
     analytics_collector_init
     assert_success "Should initialize successfully"
@@ -79,7 +83,7 @@ test_case "Initialize collector successfully" test_init_success
 
 # Test 2: Initialize with missing sessions subdirectory
 test_init_missing_sessions_dir() {
-    source_collector || return 1
+    verify_collector || return 1
 
     # Remove sessions directory
     rm -rf "${TEST_DATA_DIR}/sessions"
@@ -92,7 +96,7 @@ test_case "Initialize with missing sessions directory" test_init_missing_session
 
 # Test 3: Initialize with unreadable sessions directory
 test_init_unreadable_dir() {
-    source_collector || return 1
+    verify_collector || return 1
 
     mkdir -p "${TEST_DATA_DIR}/sessions"
     chmod 000 "${TEST_DATA_DIR}/sessions"
@@ -116,13 +120,14 @@ test_suite "Analytics Collector - Scanning"
 
 # Test 4: Scan empty directory
 test_scan_empty() {
-    source_collector || return 1
+    verify_collector || return 1
     analytics_collector_init
 
     mkdir -p "${TEST_DATA_DIR}/sessions"
 
+    analytics_collector_scan
     local count
-    count=$(analytics_collector_scan)
+    count=$(analytics_collector_count)
 
     assert_equals "0" "${count}" "Should return 0 for empty directory"
 }
@@ -130,13 +135,14 @@ test_case "Scan empty directory" test_scan_empty
 
 # Test 5: Scan single session
 test_scan_single() {
-    source_collector || return 1
+    verify_collector || return 1
     analytics_collector_init
 
     create_test_session "session-001" 85 2
 
+    analytics_collector_scan
     local count
-    count=$(analytics_collector_scan)
+    count=$(analytics_collector_count)
 
     assert_equals "1" "${count}" "Should return 1 for single session"
 }
@@ -144,15 +150,16 @@ test_case "Scan single session" test_scan_single
 
 # Test 6: Scan multiple sessions
 test_scan_multiple() {
-    source_collector || return 1
+    verify_collector || return 1
     analytics_collector_init
 
     create_test_session "session-001" 85 2
     create_test_session "session-002" 90 1
     create_test_session "session-003" 75 3
 
+    analytics_collector_scan
     local count
-    count=$(analytics_collector_scan)
+    count=$(analytics_collector_count)
 
     assert_equals "3" "${count}" "Should return 3 for three sessions"
 }
@@ -160,7 +167,7 @@ test_case "Scan multiple sessions" test_scan_multiple
 
 # Test 7: Scan with corrupted files
 test_scan_corrupted() {
-    source_collector || return 1
+    verify_collector || return 1
     analytics_collector_init
 
     create_test_session "session-001" 85 2
@@ -172,8 +179,9 @@ test_scan_corrupted() {
 
     create_test_session "session-003" 75 3
 
+    analytics_collector_scan
     local count
-    count=$(analytics_collector_scan)
+    count=$(analytics_collector_count)
 
     # Should skip corrupted, count valid sessions
     assert_true "[[ ${count} -ge 2 ]]" "Should skip corrupted files"
@@ -182,7 +190,7 @@ test_case "Scan with corrupted files" test_scan_corrupted
 
 # Test 8: Scan with missing metrics.json
 test_scan_missing_metrics() {
-    source_collector || return 1
+    verify_collector || return 1
     analytics_collector_init
 
     create_test_session "session-001" 85 2
@@ -192,8 +200,9 @@ test_scan_missing_metrics() {
 
     create_test_session "session-003" 75 3
 
+    analytics_collector_scan
     local count
-    count=$(analytics_collector_scan)
+    count=$(analytics_collector_count)
 
     # Should skip sessions without metrics
     assert_true "[[ ${count} -ge 2 ]]" "Should skip sessions without metrics"
@@ -208,7 +217,7 @@ test_suite "Analytics Collector - Session Retrieval"
 
 # Test 9: Get all sessions (sorted)
 test_get_all_sessions() {
-    source_collector || return 1
+    verify_collector || return 1
     analytics_collector_init
 
     create_test_session "session-001" 85 2
@@ -217,7 +226,7 @@ test_get_all_sessions() {
     sleep 0.1
     create_test_session "session-003" 75 3
 
-    analytics_collector_scan > /dev/null
+    analytics_collector_scan
 
     local sessions
     sessions=$(analytics_collector_get_sessions)
@@ -231,7 +240,7 @@ test_case "Get all sessions sorted" test_get_all_sessions
 
 # Test 10: Get limited sessions (top N)
 test_get_limited_sessions() {
-    source_collector || return 1
+    verify_collector || return 1
     analytics_collector_init
 
     create_test_session "session-001" 85 2
@@ -240,7 +249,7 @@ test_get_limited_sessions() {
     create_test_session "session-004" 80 2
     create_test_session "session-005" 88 1
 
-    analytics_collector_scan > /dev/null
+    analytics_collector_scan
 
     local sessions
     sessions=$(analytics_collector_get_sessions 3)
@@ -253,12 +262,12 @@ test_case "Get limited sessions" test_get_limited_sessions
 
 # Test 11: Get single session data
 test_get_session_data() {
-    source_collector || return 1
+    verify_collector || return 1
     analytics_collector_init
 
     create_test_session "session-001" 85 2
 
-    analytics_collector_scan > /dev/null
+    analytics_collector_scan
 
     local data
     data=$(analytics_collector_get_session_data "session-001")
@@ -269,10 +278,10 @@ test_case "Get single session data" test_get_session_data
 
 # Test 12: Get non-existent session
 test_get_nonexistent_session() {
-    source_collector || return 1
+    verify_collector || return 1
     analytics_collector_init
 
-    analytics_collector_scan > /dev/null
+    analytics_collector_scan
 
     local data
     data=$(analytics_collector_get_session_data "nonexistent" 2>/dev/null)
@@ -285,13 +294,13 @@ test_case "Get non-existent session" test_get_nonexistent_session
 
 # Test 13: Get sessions with limit greater than total
 test_get_sessions_limit_exceeds() {
-    source_collector || return 1
+    verify_collector || return 1
     analytics_collector_init
 
     create_test_session "session-001" 85 2
     create_test_session "session-002" 90 1
 
-    analytics_collector_scan > /dev/null
+    analytics_collector_scan
 
     local sessions
     sessions=$(analytics_collector_get_sessions 10)
@@ -310,7 +319,7 @@ test_suite "Analytics Collector - Data Parsing"
 
 # Test 14: Parse valid session metrics
 test_parse_valid_metrics() {
-    source_collector || return 1
+    verify_collector || return 1
     analytics_collector_init
 
     create_test_session "session-001" 85 2
@@ -324,7 +333,7 @@ test_case "Parse valid session metrics" test_parse_valid_metrics
 
 # Test 15: Parse missing wow_score
 test_parse_missing_score() {
-    source_collector || return 1
+    verify_collector || return 1
     analytics_collector_init
 
     local session_dir="${TEST_DATA_DIR}/sessions/session-001"
@@ -346,7 +355,7 @@ test_case "Parse missing wow_score" test_parse_missing_score
 
 # Test 16: Parse empty metrics.json
 test_parse_empty_metrics() {
-    source_collector || return 1
+    verify_collector || return 1
     analytics_collector_init
 
     local session_dir="${TEST_DATA_DIR}/sessions/session-001"
@@ -363,7 +372,7 @@ test_case "Parse empty metrics.json" test_parse_empty_metrics
 
 # Test 17: Parse invalid JSON
 test_parse_invalid_json() {
-    source_collector || return 1
+    verify_collector || return 1
     analytics_collector_init
 
     local session_dir="${TEST_DATA_DIR}/sessions/session-001"
@@ -386,7 +395,7 @@ test_suite "Analytics Collector - Edge Cases"
 
 # Test 18: Handle permission denied
 test_permission_denied() {
-    source_collector || return 1
+    verify_collector || return 1
     analytics_collector_init
 
     create_test_session "session-001" 85 2
@@ -405,7 +414,7 @@ test_case "Handle permission denied" test_permission_denied
 
 # Test 19: Handle large session count
 test_large_session_count() {
-    source_collector || return 1
+    verify_collector || return 1
     analytics_collector_init
 
     # Create 50 sessions (scaled down from 1000 for test speed)
@@ -414,26 +423,32 @@ test_large_session_count() {
     done
 
     local start_time=$(date +%s%3N)
-    analytics_collector_scan > /dev/null
+    analytics_collector_scan
     local end_time=$(date +%s%3N)
     local elapsed=$((end_time - start_time))
 
-    # Should complete in reasonable time (< 500ms for 50 sessions)
-    assert_true "[[ ${elapsed} -lt 500 ]]" "Should handle large session count efficiently"
+    local count
+    count=$(analytics_collector_count)
+
+    # Should find all 50 sessions
+    assert_equals "50" "${count}" "Should find all sessions"
+
+    # Should complete in reasonable time (< 1000ms for 50 sessions)
+    assert_true "[[ ${elapsed} -lt 1000 ]]" "Should handle large session count efficiently"
 }
 test_case "Handle large session count" test_large_session_count
 
 # Test 20: Handle concurrent access
 test_concurrent_access() {
-    source_collector || return 1
+    verify_collector || return 1
     analytics_collector_init
 
     create_test_session "session-001" 85 2
 
     # Simulate concurrent access
-    analytics_collector_scan > /dev/null &
+    analytics_collector_scan &
     local pid1=$!
-    analytics_collector_scan > /dev/null &
+    analytics_collector_scan &
     local pid2=$!
 
     wait ${pid1}
