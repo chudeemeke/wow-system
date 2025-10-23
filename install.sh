@@ -14,14 +14,29 @@ C_BLUE='\033[0;34m'
 C_BOLD='\033[1m'
 C_RESET='\033[0m'
 
-# Version
-WOW_VERSION="5.4.0"
+# ============================================================================
+# Auto-Detect Version (Single Source of Truth)
+# ============================================================================
 
-# Display banner
+# Determine project directory (where this script is)
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Parse version from source code (src/core/utils.sh)
+WOW_VERSION="unknown"
+if [[ -f "${SCRIPT_DIR}/src/core/utils.sh" ]]; then
+    WOW_VERSION=$(grep "readonly WOW_VERSION=" "${SCRIPT_DIR}/src/core/utils.sh" | cut -d'"' -f2 2>/dev/null || echo "unknown")
+fi
+
+# Fallback: Try git tag if version not found
+if [[ "${WOW_VERSION}" == "unknown" ]] && command -v git &>/dev/null; then
+    WOW_VERSION=$(cd "${SCRIPT_DIR}" && git describe --tags 2>/dev/null | sed 's/^v//' || echo "unknown")
+fi
+
+# Display banner with detected version
 echo -e "${C_BOLD}${C_CYAN}"
-cat <<'EOF'
+cat <<EOF
 ╔══════════════════════════════════════════╗
-║  WoW System Installation v5.4.0          ║
+║  WoW System Installation v${WOW_VERSION}$(printf '%*s' $((10 - ${#WOW_VERSION})) '')║
 ║  Ways of Working Enforcement             ║
 ║  Multi-Session Analytics & Custom Rules  ║
 ╚══════════════════════════════════════════╝
@@ -34,10 +49,8 @@ echo ""
 # ============================================================================
 
 echo -e "${C_BOLD}1. Detecting Environment...${C_RESET}"
-
-# Determine project directory (where this script is)
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 echo -e "   ${C_GREEN}✓${C_RESET} Project directory: ${C_CYAN}${SCRIPT_DIR}${C_RESET}"
+echo -e "   ${C_GREEN}✓${C_RESET} Detected version: ${C_CYAN}${WOW_VERSION}${C_RESET} ${C_BLUE}(from source code)${C_RESET}"
 
 # Detect WSL
 IS_WSL=0
@@ -341,59 +354,92 @@ else
 fi
 
 echo ""
-echo -e "${C_BOLD}10. Running Handler Self-Tests...${C_RESET}"
 
-# Test all 10 handlers
-bash "${WOW_INSTALL_DIR}/src/handlers/bash-handler.sh" 2>/dev/null | grep -q "All self-tests passed" && \
-    echo -e "   ${C_GREEN}✓${C_RESET} Bash handler" || echo -e "   ${C_RED}✗${C_RESET} Bash handler"
+# ============================================================================
+# Dynamic Module Discovery & Testing
+# ============================================================================
 
-bash "${WOW_INSTALL_DIR}/src/handlers/write-handler.sh" 2>/dev/null | grep -q "All self-tests passed" && \
-    echo -e "   ${C_GREEN}✓${C_RESET} Write handler" || echo -e "   ${C_RED}✗${C_RESET} Write handler"
+# Discover handlers
+HANDLER_FILES=($(find "${WOW_INSTALL_DIR}/src/handlers" -name "*-handler.sh" -type f 2>/dev/null | sort))
+HANDLER_COUNT=${#HANDLER_FILES[@]}
 
-bash "${WOW_INSTALL_DIR}/src/handlers/edit-handler.sh" 2>/dev/null | grep -q "All self-tests passed" && \
-    echo -e "   ${C_GREEN}✓${C_RESET} Edit handler" || echo -e "   ${C_RED}✗${C_RESET} Edit handler"
+echo -e "${C_BOLD}10. Testing Security Handlers (${HANDLER_COUNT} discovered)...${C_RESET}"
 
-bash "${WOW_INSTALL_DIR}/src/handlers/read-handler.sh" 2>/dev/null | grep -q "All self-tests passed" && \
-    echo -e "   ${C_GREEN}✓${C_RESET} Read handler" || echo -e "   ${C_RED}✗${C_RESET} Read handler"
-
-bash "${WOW_INSTALL_DIR}/src/handlers/glob-handler.sh" 2>/dev/null | grep -q "All self-tests passed" && \
-    echo -e "   ${C_GREEN}✓${C_RESET} Glob handler" || echo -e "   ${C_RED}✗${C_RESET} Glob handler"
-
-bash "${WOW_INSTALL_DIR}/src/handlers/grep-handler.sh" 2>/dev/null | grep -q "All self-tests passed" && \
-    echo -e "   ${C_GREEN}✓${C_RESET} Grep handler" || echo -e "   ${C_RED}✗${C_RESET} Grep handler"
-
-bash "${WOW_INSTALL_DIR}/src/handlers/task-handler.sh" 2>/dev/null | grep -q "All self-tests passed" && \
-    echo -e "   ${C_GREEN}✓${C_RESET} Task handler" || echo -e "   ${C_RED}✗${C_RESET} Task handler"
-
-bash "${WOW_INSTALL_DIR}/src/handlers/webfetch-handler.sh" 2>/dev/null | grep -q "All self-tests passed" && \
-    echo -e "   ${C_GREEN}✓${C_RESET} WebFetch handler" || echo -e "   ${C_RED}✗${C_RESET} WebFetch handler"
-
-bash "${WOW_INSTALL_DIR}/src/handlers/websearch-handler.sh" 2>/dev/null | grep -q "All self-tests passed" && \
-    echo -e "   ${C_GREEN}✓${C_RESET} WebSearch handler (v5.4.0)" || echo -e "   ${C_RED}✗${C_RESET} WebSearch handler"
-
-bash "${WOW_INSTALL_DIR}/src/handlers/notebookedit-handler.sh" 2>/dev/null | grep -q "All self-tests passed" && \
-    echo -e "   ${C_GREEN}✓${C_RESET} NotebookEdit handler (v5.4.0)" || echo -e "   ${C_RED}✗${C_RESET} NotebookEdit handler"
+if [[ ${HANDLER_COUNT} -eq 0 ]]; then
+    echo -e "   ${C_RED}✗${C_RESET} No handlers found"
+else
+    for handler in "${HANDLER_FILES[@]}"; do
+        handler_name=$(basename "${handler}" | sed 's/-handler\.sh$//' | sed 's/.*/\u&/')
+        if bash "${handler}" 2>/dev/null | grep -q "All self-tests passed"; then
+            echo -e "   ${C_GREEN}✓${C_RESET} ${handler_name} handler"
+        else
+            echo -e "   ${C_RED}✗${C_RESET} ${handler_name} handler"
+        fi
+    done
+fi
 
 echo ""
-echo -e "${C_BOLD}11. Testing Analytics & Pattern Modules (v5.4.0)...${C_RESET}"
 
-bash "${WOW_INSTALL_DIR}/src/analytics/patterns.sh" 2>/dev/null | grep -q "All self-tests passed" && \
-    echo -e "   ${C_GREEN}✓${C_RESET} Pattern recognition engine" || echo -e "   ${C_YELLOW}⚠${C_RESET} Pattern recognition (optional)"
+# Discover analytics modules
+ANALYTICS_FILES=($(find "${WOW_INSTALL_DIR}/src/analytics" -name "*.sh" -type f 2>/dev/null | sort))
+ANALYTICS_COUNT=${#ANALYTICS_FILES[@]}
 
-bash "${WOW_INSTALL_DIR}/src/rules/dsl.sh" 2>/dev/null | grep -q "All self-tests passed" && \
-    echo -e "   ${C_GREEN}✓${C_RESET} Custom Rule DSL" || echo -e "   ${C_YELLOW}⚠${C_RESET} Custom Rule DSL (optional)"
+echo -e "${C_BOLD}11. Testing Analytics Modules (${ANALYTICS_COUNT} discovered)...${C_RESET}"
 
-bash "${WOW_INSTALL_DIR}/src/handlers/custom-rule-helper.sh" 2>/dev/null | grep -q "All self-tests passed" && \
-    echo -e "   ${C_GREEN}✓${C_RESET} Custom Rule Helper" || echo -e "   ${C_YELLOW}⚠${C_RESET} Custom Rule Helper (optional)"
+if [[ ${ANALYTICS_COUNT} -eq 0 ]]; then
+    echo -e "   ${C_YELLOW}⚠${C_RESET} No analytics modules found"
+else
+    for module in "${ANALYTICS_FILES[@]}"; do
+        module_name=$(basename "${module}" .sh)
+        if bash "${module}" 2>/dev/null | grep -q "All self-tests passed"; then
+            echo -e "   ${C_GREEN}✓${C_RESET} ${module_name}"
+        elif bash "${module}" 2>/dev/null | grep -q "All tests passed"; then
+            echo -e "   ${C_GREEN}✓${C_RESET} ${module_name}"
+        else
+            echo -e "   ${C_YELLOW}⚠${C_RESET} ${module_name} (optional or no self-test)"
+        fi
+    done
+fi
 
 echo ""
-echo -e "${C_BOLD}12. Testing Core Engines...${C_RESET}"
 
-bash "${WOW_INSTALL_DIR}/src/engines/scoring-engine.sh" 2>/dev/null | grep -q "All tests passed" && \
-    echo -e "   ${C_GREEN}✓${C_RESET} Scoring engine" || echo -e "   ${C_YELLOW}⚠${C_RESET} Scoring engine"
+# Discover rules modules
+RULES_FILES=($(find "${WOW_INSTALL_DIR}/src/rules" -name "*.sh" -type f 2>/dev/null | sort))
+RULES_COUNT=${#RULES_FILES[@]}
 
-bash "${WOW_INSTALL_DIR}/src/engines/risk-assessor.sh" 2>/dev/null | grep -q "All tests passed" && \
-    echo -e "   ${C_GREEN}✓${C_RESET} Risk assessor" || echo -e "   ${C_YELLOW}⚠${C_RESET} Risk assessor"
+if [[ ${RULES_COUNT} -gt 0 ]]; then
+    echo -e "${C_BOLD}12. Testing Custom Rules System (${RULES_COUNT} discovered)...${C_RESET}"
+
+    for module in "${RULES_FILES[@]}"; do
+        module_name=$(basename "${module}" .sh)
+        if bash "${module}" 2>/dev/null | grep -q "All self-tests passed"; then
+            echo -e "   ${C_GREEN}✓${C_RESET} ${module_name}"
+        else
+            echo -e "   ${C_YELLOW}⚠${C_RESET} ${module_name} (optional)"
+        fi
+    done
+
+    echo ""
+fi
+
+# Discover engine modules
+ENGINE_FILES=($(find "${WOW_INSTALL_DIR}/src/engines" -name "*.sh" -type f 2>/dev/null | sort))
+ENGINE_COUNT=${#ENGINE_FILES[@]}
+
+if [[ ${ENGINE_COUNT} -gt 0 ]]; then
+    echo -e "${C_BOLD}13. Testing Core Engines (${ENGINE_COUNT} discovered)...${C_RESET}"
+
+    for module in "${ENGINE_FILES[@]}"; do
+        module_name=$(basename "${module}" .sh)
+        if bash "${module}" 2>/dev/null | grep -q "All tests passed"; then
+            echo -e "   ${C_GREEN}✓${C_RESET} ${module_name}"
+        elif bash "${module}" 2>/dev/null | grep -q "All self-tests passed"; then
+            echo -e "   ${C_GREEN}✓${C_RESET} ${module_name}"
+        else
+            echo -e "   ${C_YELLOW}⚠${C_RESET} ${module_name} (optional)"
+        fi
+    done
+fi
 
 echo ""
 
