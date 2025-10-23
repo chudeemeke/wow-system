@@ -126,6 +126,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Overall Assessment**: Performance excellent, no optimization needed
 - **Baseline Maintained**: Comparable to Phase E (13ms P95)
 
+### Installation & Deployment (Phase D)
+- **install.sh v5.4.0 Complete Rewrite** (462 LOC)
+  - Windows filesystem deployment strategy for WSL2
+  - Auto-detection of Windows user directory
+  - Deploys to /mnt/c/Users/{USER}/.claude/wow-system/
+  - Creates symlink: ~/.claude → Windows filesystem location
+  - Automatic backup of existing installations
+  - Interactive confirmation before overwrite
+  - Claude Code settings.json configuration
+  - Comprehensive testing: 10 handlers + analytics + patterns
+  - Environment variable setup (.bashrc integration)
+  - Clear post-installation instructions
+  - Idempotent (safe to run multiple times)
+
 ### Release Summary
 - **Total LOC Added**: ~4,850 (handlers, analytics, patterns, custom rules)
 - **New Modules**: 11 (2 handlers, 4 analytics, 3 pattern/rule, 2 helper modules)
