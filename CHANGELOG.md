@@ -139,6 +139,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Environment variable setup (.bashrc integration)
   - Clear post-installation instructions
   - Idempotent (safe to run multiple times)
+  - **Dynamic Autodiscovery Pattern** (Single Source of Truth)
+    - Version parsed from src/core/utils.sh (not hardcoded)
+    - Handlers auto-discovered via find (no hardcoded list)
+    - Analytics/rules/engines dynamically detected
+    - Zero maintenance: Adding modules requires no install.sh changes
+    - Industry standard: DRY principle implementation
 
 ### Release Summary
 - **Total LOC Added**: ~4,850 (handlers, analytics, patterns, custom rules)
