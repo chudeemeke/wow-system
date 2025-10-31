@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**WoW System v5.0.1** - Ways of Working Enforcement for Claude Code
+**WoW System v5.4.2** - Ways of Working Enforcement for Claude Code
 
 A production-grade defensive security framework that intercepts Claude Code tool calls to prevent dangerous operations, enforce best practices, and maintain behavioral scoring.
 
@@ -28,9 +28,10 @@ The orchestrator loads modules in strict dependency order:
 
 1. Design Patterns (v5.0+): DI Container, Event Bus, Handler Factory
 2. Core Foundation: utils.sh → file-storage.sh → state-manager.sh → config-loader.sh → session-manager.sh
-3. Handlers: Loaded on-demand by handler-router.sh
-4. Engines: scoring-engine.sh, risk-assessor.sh, capture-engine.sh (v5.0+)
-5. Security: credential-detector.sh, credential-storage.sh (v5.0+)
+3. Security Constants (v5.4.2+): security-constants.sh (shared SSRF patterns, Single Source of Truth)
+4. Handlers: Loaded on-demand by handler-router.sh
+5. Engines: scoring-engine.sh, risk-assessor.sh, capture-engine.sh (v5.0+)
+6. Security: credential-detector.sh, credential-storage.sh (v5.0+)
 
 **Double-sourcing protection**: All modules check WOW_*_LOADED guards to prevent re-initialization.
 
@@ -351,7 +352,8 @@ Per global CLAUDE.md rules:
 - `hooks/user-prompt-submit.sh` - Main integration point with Claude Code (hooks/user-prompt-submit.sh:1-150)
 - `src/core/orchestrator.sh` - System initialization (Facade pattern) (src/core/orchestrator.sh:1-352)
 - `src/handlers/handler-router.sh` - Tool routing (Strategy pattern)
-- `src/core/utils.sh` - Version constant, logging, validation utilities
+- `src/core/utils.sh` - **Single Source of Truth for WOW_VERSION**, logging, validation utilities
+- `src/security/security-constants.sh` - **Shared security patterns** (BLOCKED_IP_PATTERNS for SSRF prevention)
 - `config/wow-config.json` - Default configuration (config/wow-config.json:1-49)
 - `tests/test-framework.sh` - Testing infrastructure (tests/test-framework.sh:1-364)
 - `.doctruth.yml` - Documentation automation config (.doctruth.yml:1-80)
@@ -360,7 +362,7 @@ Per global CLAUDE.md rules:
 
 **CRITICAL**: This project was rebuilt from v4.1 after v4.0.2 was accidentally deleted on September 30, 2025 via `rm -rf /mnt/c/Users/Destiny/.claude/`. The current architecture (standalone project in /Projects/ with symlink deployment to .claude/) was specifically designed to prevent this from happening again.
 
-See `CONTEXT.md` for complete history: v1.0 → v2.0 → v3.5.0 → v4.0 → v4.0.2 (lost) → v4.1 → v5.0 → v5.0.1
+See `CONTEXT.md` for complete history: v1.0 → v2.0 → v3.5.0 → v4.0 → v4.0.2 (lost) → v4.1 → v5.0 → v5.0.1 → v5.4.0 → v5.4.1 → v5.4.2
 
 ## Self-Documentation Paradox
 

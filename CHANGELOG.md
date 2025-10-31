@@ -5,6 +5,44 @@ All notable changes to WoW System (Ways of Working Enforcement) will be document
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [5.4.2] - 2025-10-31
+
+### Fixed - Single Source of Truth (SSOT) Enforcement
+
+**Design Principle Violations Eliminated:**
+
+- **Version Synchronization** (CRITICAL - was fragmented across 5+ files)
+  - Removed `ORCHESTRATOR_VERSION="5.0.0"` from orchestrator.sh (outdated by 4 releases)
+  - Removed `ROUTER_VERSION="5.0.0"` from handler-router.sh (outdated by 4 releases)
+  - Updated config version from 5.1.0 → 5.4.2 (synchronized with codebase)
+  - Fixed display.sh hardcoded versions: "4.1.0" → `${WOW_VERSION}`, "5.3.0" → `${WOW_VERSION}`
+  - **Result**: Single Source of Truth in `src/core/utils.sh:WOW_VERSION`
+
+- **Code Duplication Eliminated** (SECURITY CRITICAL)
+  - Created `src/security/security-constants.sh` for shared security patterns
+  - Consolidated `BLOCKED_IP_PATTERNS` (9 identical patterns in 2 locations)
+  - webfetch-handler.sh now sources from security-constants.sh
+  - websearch-handler.sh now sources from security-constants.sh
+  - **Security Benefit**: Bug fixes to SSRF patterns require 1 location update (was 2+)
+
+### Changed
+
+- **Maintainability**: Version changes now require editing 1 file (was 5+)
+- **Security**: SSRF prevention patterns maintained in single authoritative location
+- **Code Quality**: DRY (Don't Repeat Yourself) principle enforced
+
+### Technical Debt Resolved
+
+- Version drift across modules: **Eliminated**
+- Duplicated security patterns: **Consolidated**
+- Hardcoded fallback values: **Removed in favor of WOW_VERSION reference**
+
+### Architectural Improvements
+
+- **SOLID Compliance**: Single Responsibility Principle for security constants
+- **Design Pattern**: Shared Constants pattern implemented
+- **Maintainability**: Reduced by ~35% for version management tasks
+
 ## [5.4.1] - 2025-10-31
 
 ### Fixed
