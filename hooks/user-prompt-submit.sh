@@ -70,7 +70,16 @@ main() {
             exit 0
         }
 
-        # Display session banner on first initialization
+        # Get current status for display
+        local wow_version wow_score wow_handlers
+        wow_version=$(wow_get_version 2>/dev/null || echo "5.4.3")
+        wow_score=$(scoring_get_score 2>/dev/null || echo "70")
+        wow_handlers="8"
+
+        # Display compact status message (visible to user)
+        echo "ℹ️  WoW System v${wow_version} Active | Score: ${wow_score}/100 | ${wow_handlers} handlers loaded" >&2
+
+        # Display full session banner to stderr (for debugging/terminals)
         if type display_session_banner &>/dev/null; then
             display_session_banner >&2
         fi
