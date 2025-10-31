@@ -128,6 +128,7 @@ readonly -a SAFE_DOMAINS=(
     "microsoft\.(com|docs)"
     "apple\.(com|developer)"
     "docs\.anthropic\.com"
+    "docs\.claude\.com"
     "openai\.com"
 )
 
@@ -360,6 +361,11 @@ _validate_url() {
     # Warn if IP-based URL (not localhost/private)
     if _is_ip_address "${domain}"; then
         wow_warn "ℹ️  IP-based URL (not domain name): ${domain}"
+    fi
+
+    # v5.4.1: Check if domain is in safe list (warning only, not blocking)
+    if ! _is_safe_domain "${domain}"; then
+        wow_warn "⚠️  Domain not in safe list (allowing but monitoring): ${domain}"
     fi
 
     return 0  # Valid

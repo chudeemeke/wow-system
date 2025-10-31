@@ -5,6 +5,23 @@ All notable changes to WoW System (Ways of Working Enforcement) will be document
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [5.4.1] - 2025-10-31
+
+### Fixed
+- **Hook Configuration**: Corrected PreToolUse hook path in settings.json from `/root/.claude/wow-system/hooks/user-prompt-submit.sh` to `/root/.claude/hooks/user-prompt-submit.sh`
+  - Issue: Hook was not firing due to incorrect path (wow-system subdirectory doesn't exist in hooks/)
+  - Result: WoW System now properly intercepts all tool calls
+
+- **WebFetch Handler - Safe Domain Validation**: Fixed dead code issue where `_is_safe_domain()` function was never called
+  - Added call to `_is_safe_domain()` in `_validate_url()` function
+  - Now warns when domain not in safe list (monitoring approach, non-blocking)
+  - Added `docs.claude.com` to SAFE_DOMAINS list (was missing, caused false positives)
+
+### Technical Debt
+- WebFetch handler still uses hardcoded domain lists (violates OCP/SRP)
+- Planned architectural refactor in v6.0.0 with dedicated security module
+- See [Architecture Refactor Plan](https://github.com/wow-system/issues/xxx) for details
+
 ## [5.4.0] - 2025-10-22
 
 ### Added - Phase B: Feature Expansion
