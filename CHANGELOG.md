@@ -5,6 +5,37 @@ All notable changes to WoW System (Ways of Working Enforcement) will be document
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [5.4.4] - 2025-10-31
+
+### Added
+
+**User Visibility: Compact Status + On-Demand Command**
+- **Issue**: Users never saw WoW System banner at session start (stderr not visible in Claude Code UI)
+- **Solution**: Dual approach for maximum visibility
+
+**1. Compact Status Line** (`hooks/user-prompt-submit.sh`)
+- Shows on first tool call of each session
+- Format: `ℹ️ WoW System v5.4.4 Active | Score: 70/100 | 8 handlers loaded`
+- Non-intrusive, always visible
+- Works with both `claude` and `claude -c` (continue mode)
+
+**2. `/wow-status` Slash Command** (`.claude/commands/wow-status.md`)
+- User can run `/wow-status` anytime to see full details
+- Shows complete banner with score, config, trends, patterns
+- On-demand visibility without cluttering conversation
+- Useful for mid-session status checks
+
+**3. Full Banner Preserved**
+- Still outputs to stderr for terminal/debugging use
+- Will display in color after v5.4.3 ANSI fix + restart
+- Doesn't overwhelm Claude Code UI
+
+### User Experience Improvements
+- ✅ Always know WoW System is active (compact status visible)
+- ✅ Check full details anytime with `/wow-status` command
+- ✅ No more "invisible" security system
+- ✅ Works perfectly with `sudo claude -c` workflow
+
 ## [5.4.3] - 2025-10-31
 
 ### Fixed
