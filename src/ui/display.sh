@@ -40,17 +40,18 @@ set -uo pipefail
 readonly DISPLAY_VERSION="1.0.0"
 
 # ANSI Color codes (from utils.sh but define here for clarity)
-readonly C_RESET='\033[0m'
-readonly C_RED='\033[0;31m'
-readonly C_GREEN='\033[0;32m'
-readonly C_YELLOW='\033[0;33m'
-readonly C_BLUE='\033[0;34m'
-readonly C_MAGENTA='\033[0;35m'
-readonly C_CYAN='\033[0;36m'
-readonly C_GRAY='\033[0;90m'
+# NOTE: Using $'...' syntax to store actual escape character (0x1b), not literal \033
+readonly C_RESET=$'\033[0m'
+readonly C_RED=$'\033[0;31m'
+readonly C_GREEN=$'\033[0;32m'
+readonly C_YELLOW=$'\033[0;33m'
+readonly C_BLUE=$'\033[0;34m'
+readonly C_MAGENTA=$'\033[0;35m'
+readonly C_CYAN=$'\033[0;36m'
+readonly C_GRAY=$'\033[0;90m'
 
-readonly C_BOLD='\033[1m'
-readonly C_DIM='\033[2m'
+readonly C_BOLD=$'\033[1m'
+readonly C_DIM=$'\033[2m'
 
 # Box drawing characters
 readonly BOX_TL="┌"
