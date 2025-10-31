@@ -25,8 +25,6 @@ set -uo pipefail
 # Constants
 # ============================================================================
 
-readonly ROUTER_VERSION="5.0.0"
-
 # Handler registry (tool_type => handler_path)
 declare -gA _WOW_HANDLER_REGISTRY
 

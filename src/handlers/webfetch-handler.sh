@@ -20,6 +20,7 @@ readonly WOW_WEBFETCH_HANDLER_LOADED=1
 # Source dependencies
 _WEBFETCH_HANDLER_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${_WEBFETCH_HANDLER_DIR}/../core/utils.sh"
+source "${_WEBFETCH_HANDLER_DIR}/../security/security-constants.sh"
 source "${_WEBFETCH_HANDLER_DIR}/custom-rule-helper.sh" 2>/dev/null || true
 
 set -uo pipefail
@@ -28,18 +29,7 @@ set -uo pipefail
 # Constants - Blocked Patterns
 # ============================================================================
 
-# CRITICAL: Private/internal IP ranges (SSRF prevention)
-readonly -a BLOCKED_IP_PATTERNS=(
-    "^127\."                    # 127.0.0.0/8 (loopback)
-    "^10\."                     # 10.0.0.0/8 (private)
-    "^172\.(1[6-9]|2[0-9]|3[01])\."  # 172.16.0.0/12 (private)
-    "^192\.168\."               # 192.168.0.0/16 (private)
-    "^169\.254\."               # 169.254.0.0/16 (link-local)
-    "^::1$"                     # IPv6 loopback
-    "^fe80:"                    # IPv6 link-local
-    "^fc00:"                    # IPv6 unique local
-    "^fd00:"                    # IPv6 unique local
-)
+# Note: BLOCKED_IP_PATTERNS now sourced from security-constants.sh (Single Source of Truth)
 
 # Blocked hostnames
 readonly -a BLOCKED_HOSTNAMES=(

@@ -19,8 +19,6 @@ readonly WOW_ORCHESTRATOR_LOADED=1
 # Constants
 # ============================================================================
 
-readonly ORCHESTRATOR_VERSION="5.0.0"
-
 # Module registry (for dependency tracking)
 declare -gA _WOW_MODULES_LOADED
 
@@ -306,7 +304,7 @@ wow_load_all() {
 # ============================================================================
 
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
-    echo "WoW Orchestrator v${ORCHESTRATOR_VERSION} - Self Test"
+    echo "WoW Orchestrator v${WOW_VERSION} - Self Test"
     echo "======================================================"
     echo ""
 

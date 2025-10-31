@@ -68,7 +68,7 @@ readonly BOX_VL="┤"
 
 # Display WoW System banner
 display_banner() {
-    local version="${1:-4.1.0}"
+    local version="${1:-${WOW_VERSION}}"
     local score="${2:-70}"
     local status="${3:-good}"
 
@@ -98,7 +98,7 @@ EOF
 # Args: none (reads from session manager and config)
 display_session_banner() {
     # Get version from utils
-    local version="${WOW_VERSION:-5.3.0}"
+    local version="${WOW_VERSION}"
 
     # Get configuration
     local enforcement_status="Enabled"

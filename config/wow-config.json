@@ -1,5 +1,5 @@
 {
-  "version": "5.1.0",
+  "version": "5.4.2",
   "enforcement": {
     "enabled": true,
     "strict_mode": false,
