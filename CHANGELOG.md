@@ -5,6 +5,35 @@ All notable changes to WoW System (Ways of Working Enforcement) will be document
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [5.4.3] - 2025-10-31
+
+### Fixed
+
+**Display: ANSI Color Rendering in Claude Code**
+- **Issue**: Banner displayed raw escape codes (`\033[0;36m`) instead of rendering colors
+- **Root Cause**: Color constants used single quotes `'\033[...]'` which store literal backslash+digits
+- **Solution**: Changed to ANSI-C quoting `$'\033[...]'` which stores actual ESC byte (0x1B)
+
+**Technical Details**:
+- Single quotes: `'\033'` = 4 literal chars (backslash, 0, 3, 3)
+- ANSI-C quotes: `$'\033'` = 1 byte (0x1B ESC character)
+- Terminal receives real control character → renders colors properly
+
+**Files Changed**:
+- `src/ui/display.sh` lines 43-54: All 10 color constants updated
+- Added clarifying comment for future maintainers
+
+**Platform Support**:
+- ✅ WSL2 Ubuntu (tested)
+- ✅ macOS (bash 2.04+)
+- ✅ Native Linux (bash 2.04+)
+- NOT WSL2-specific - standard bash behavior
+
+**Visual Impact**:
+- Banner now displays in cyan/bold as designed
+- Status indicators render in proper colors (green, yellow, red)
+- No more raw `\033[...]` codes visible
+
 ## [5.4.2] - 2025-10-31
 
 ### Fixed - Single Source of Truth (SSOT) Enforcement
