@@ -1,0 +1,422 @@
+{
+  "$schema": "https://json-schema.org/draft-07/schema#",
+  "version": "5.4.3",
+  "standard": {
+    "name": "World of Wisdom (WoW) Structure Standard",
+    "description": "Universal project structure standard for consistent, maintainable, and scalable projects",
+    "author": "Chude <chude@emeke.org>",
+    "license": "MIT",
+    "documentation": "https://github.com/wow-system/docs/structure-standard.md"
+  },
+  "structure": {
+    "folders": {
+      "required": {
+        "src": {
+          "purpose": "Source code and primary application logic",
+          "description": "Contains all application source code, modules, and business logic",
+          "allowed_patterns": [
+            "*.js", "*.jsx", "*.ts", "*.tsx",
+            "*.py", "*.go", "*.rs", "*.java",
+            "*.c", "*.cpp", "*.h", "*.hpp",
+            "*.rb", "*.php", "*.swift", "*.kt"
+          ],
+          "excluded_patterns": [
+            "*.test.*", "*.spec.*",
+            "*.config.*", "*.setup.*",
+            "__pycache__", "*.pyc",
+            "node_modules"
+          ],
+          "examples": [
+            "src/index.js",
+            "src/components/Button.tsx",
+            "src/models/User.py",
+            "src/services/api.go"
+          ]
+        },
+        "docs": {
+          "purpose": "Project documentation",
+          "description": "All documentation except root-level standard files",
+          "allowed_patterns": [
+            "*.md", "*.txt", "*.pdf",
+            "*.rst", "*.adoc"
+          ],
+          "excluded_patterns": [
+            "README.md", "CHANGELOG.md",
+            "LICENSE.md", "CONTRIBUTING.md",
+            "CODE_OF_CONDUCT.md"
+          ],
+          "subfolders": {
+            "architecture": "System design and architecture decisions",
+            "api": "API documentation and specifications",
+            "guides": "User and developer guides",
+            "planning": "Planning documents and roadmaps"
+          },
+          "examples": [
+            "docs/architecture/system-design.md",
+            "docs/api/endpoints.md",
+            "docs/guides/getting-started.md"
+          ]
+        },
+        "tests": {
+          "purpose": "Test files and test utilities",
+          "description": "Unit tests, integration tests, E2E tests, and test fixtures",
+          "allowed_patterns": [
+            "*.test.js", "*.spec.ts",
+            "test_*.py", "*_test.go",
+            "*.test.rs", "*.test.java"
+          ],
+          "subfolders": {
+            "unit": "Unit tests for individual components",
+            "integration": "Integration tests for module interactions",
+            "e2e": "End-to-end tests",
+            "fixtures": "Test data and fixtures"
+          },
+          "examples": [
+            "tests/unit/Button.test.tsx",
+            "tests/integration/api.test.js",
+            "tests/fixtures/sample-data.json"
+          ]
+        }
+      },
+      "recommended": {
+        "scripts": {
+          "purpose": "Build scripts, deployment scripts, and automation",
+          "description": "Shell scripts, build automation, and development tools",
+          "allowed_patterns": [
+            "*.sh", "*.bash", "*.bat",
+            "*.ps1", "*.py", "*.js"
+          ],
+          "examples": [
+            "scripts/build.sh",
+            "scripts/deploy.sh",
+            "scripts/setup-env.sh"
+          ]
+        },
+        "config": {
+          "purpose": "Configuration files organized by environment",
+          "description": "Environment-specific configs, not framework configs",
+          "allowed_patterns": [
+            "*.json", "*.yaml", "*.yml",
+            "*.toml", "*.ini", "*.env.*"
+          ],
+          "subfolders": {
+            "development": "Development environment configs",
+            "staging": "Staging environment configs",
+            "production": "Production environment configs"
+          },
+          "examples": [
+            "config/development/database.json",
+            "config/production/redis.yml"
+          ]
+        },
+        "assets": {
+          "purpose": "Static assets and media files",
+          "description": "Images, fonts, icons, videos, and other static files",
+          "allowed_patterns": [
+            "*.png", "*.jpg", "*.jpeg", "*.gif",
+            "*.svg", "*.ico", "*.webp",
+            "*.woff", "*.woff2", "*.ttf",
+            "*.mp4", "*.webm", "*.mov"
+          ],
+          "subfolders": {
+            "images": "Image files",
+            "fonts": "Font files",
+            "icons": "Icon files",
+            "videos": "Video files"
+          },
+          "examples": [
+            "assets/images/logo.png",
+            "assets/fonts/Roboto-Regular.woff2"
+          ]
+        }
+      },
+      "optional": {
+        "public": {
+          "purpose": "Publicly accessible static files (web projects)",
+          "description": "Files served directly by web server",
+          "framework_specific": ["nextjs", "react", "vue", "angular"]
+        },
+        "build": {
+          "purpose": "Build output directory (auto-generated)",
+          "description": "Compiled/bundled files - should be in .gitignore"
+        },
+        "dist": {
+          "purpose": "Distribution files (auto-generated)",
+          "description": "Production-ready files - should be in .gitignore"
+        },
+        "lib": {
+          "purpose": "Compiled library output (for library projects)",
+          "description": "Built library files for distribution"
+        }
+      }
+    },
+    "root_files": {
+      "allowed_by_category": {
+        "package_management": {
+          "description": "Dependency and package management files",
+          "files": [
+            "package.json", "package-lock.json",
+            "yarn.lock", "pnpm-lock.yaml",
+            "requirements.txt", "Pipfile", "Pipfile.lock",
+            "pyproject.toml", "setup.py", "setup.cfg",
+            "Cargo.toml", "Cargo.lock",
+            "go.mod", "go.sum",
+            "Gemfile", "Gemfile.lock",
+            "composer.json", "composer.lock",
+            "build.gradle", "pom.xml"
+          ]
+        },
+        "build_config": {
+          "description": "Build tool and bundler configuration",
+          "files": [
+            "vite.config.js", "vite.config.ts",
+            "webpack.config.js", "rollup.config.js",
+            "tsconfig.json", "jsconfig.json",
+            "babel.config.js", ".babelrc"
+          ]
+        },
+        "framework_config": {
+          "description": "Framework-specific configuration files",
+          "files": [
+            "next.config.js", "next.config.mjs", "next.config.ts",
+            "nuxt.config.js", "nuxt.config.ts",
+            "svelte.config.js", "astro.config.mjs",
+            "angular.json", "vue.config.js"
+          ]
+        },
+        "linting_formatting": {
+          "description": "Code quality and formatting tools",
+          "files": [
+            "eslint.config.js", ".eslintrc.js", ".eslintrc.json",
+            "prettier.config.js", ".prettierrc", ".prettierignore",
+            ".editorconfig",
+            "tailwind.config.js", "tailwind.config.ts",
+            "postcss.config.js", "postcss.config.cjs"
+          ]
+        },
+        "testing": {
+          "description": "Testing framework configuration",
+          "files": [
+            "jest.config.js", "jest.config.ts", "jest.config.cjs",
+            "vitest.config.js", "vitest.config.ts",
+            "playwright.config.js", "playwright.config.ts",
+            "cypress.config.js", "cypress.config.ts"
+          ]
+        },
+        "deployment": {
+          "description": "Deployment and containerization",
+          "files": [
+            "Dockerfile", "docker-compose.yml",
+            ".dockerignore",
+            "vercel.json", "netlify.toml"
+          ]
+        },
+        "environment": {
+          "description": "Environment and secrets (note: actual .env files should NOT be committed)",
+          "files": [
+            ".env.example", ".env.local.example",
+            ".env.template"
+          ],
+          "security_note": "Never commit actual .env files with secrets"
+        },
+        "version_control": {
+          "description": "Git and version control configuration",
+          "files": [
+            ".gitignore", ".gitattributes",
+            ".gitmodules"
+          ]
+        },
+        "documentation": {
+          "description": "Root-level documentation files",
+          "files": [
+            "README.md", "CHANGELOG.md",
+            "LICENSE", "LICENSE.md",
+            "CONTRIBUTING.md", "CODE_OF_CONDUCT.md",
+            "SECURITY.md"
+          ]
+        },
+        "project_meta": {
+          "description": "Project metadata and configuration",
+          "files": [
+            ".project.jsonl",
+            "CLAUDE.md",
+            ".mcp.json",
+            ".doctruth.yml",
+            "Makefile"
+          ]
+        }
+      },
+      "validation_rules": {
+        "source_files_in_root": {
+          "severity": "error",
+          "message": "Source files should be in src/ folder",
+          "patterns": [
+            "*.js", "*.jsx", "*.ts", "*.tsx",
+            "*.py", "*.go", "*.rs"
+          ],
+          "exceptions": [
+            "Files matching framework_config patterns",
+            "Files matching testing patterns (*.config.js)",
+            "Files matching linting_formatting patterns"
+          ]
+        },
+        "scripts_in_root": {
+          "severity": "warning",
+          "message": "Scripts should be in scripts/ folder",
+          "patterns": ["*.sh", "*.bash", "*.bat", "*.ps1"],
+          "exceptions": [
+            "setup.sh", "install.sh", "bootstrap.sh"
+          ]
+        },
+        "docs_in_root": {
+          "severity": "warning",
+          "message": "Documentation should be in docs/ folder",
+          "patterns": ["*.md"],
+          "exceptions": [
+            "README.md", "CHANGELOG.md", "LICENSE.md",
+            "CONTRIBUTING.md", "CODE_OF_CONDUCT.md",
+            "SECURITY.md", "CLAUDE.md"
+          ]
+        }
+      }
+    }
+  },
+  "framework_exceptions": {
+    "nextjs": {
+      "description": "Next.js 13+ App Router conventions",
+      "allowed_root_folders": ["app", "pages", "public", "styles"],
+      "allowed_root_files": [
+        "next.config.js", "next.config.mjs", "next.config.ts",
+        "next-env.d.ts",
+        "middleware.ts", "middleware.js",
+        "instrumentation.ts", "instrumentation.js"
+      ],
+      "notes": "Next.js uses app/ or pages/ directory in root by convention"
+    },
+    "nuxtjs": {
+      "description": "Nuxt.js directory structure",
+      "allowed_root_folders": [
+        "pages", "components", "layouts",
+        "middleware", "plugins", "store",
+        "public", "assets"
+      ],
+      "allowed_root_files": [
+        "nuxt.config.js", "nuxt.config.ts"
+      ]
+    },
+    "python": {
+      "description": "Python project conventions",
+      "allowed_root_folders": [
+        "venv", ".venv",
+        "__pycache__", ".pytest_cache",
+        "*.egg-info"
+      ],
+      "allowed_root_files": [
+        "pyproject.toml", "setup.py", "setup.cfg",
+        "MANIFEST.in", "requirements.txt",
+        "Pipfile", "Pipfile.lock"
+      ],
+      "notes": "Python virtual environments and build artifacts stay in root"
+    },
+    "rust": {
+      "description": "Rust/Cargo conventions",
+      "allowed_root_folders": ["target"],
+      "allowed_root_files": [
+        "Cargo.toml", "Cargo.lock",
+        "build.rs"
+      ]
+    },
+    "go": {
+      "description": "Go module conventions",
+      "allowed_root_files": [
+        "go.mod", "go.sum",
+        "go.work", "go.work.sum"
+      ]
+    },
+    "nodejs": {
+      "description": "Node.js common patterns",
+      "allowed_root_folders": [
+        "node_modules", "dist", "build", "out"
+      ],
+      "allowed_root_files": [
+        "package.json", "package-lock.json",
+        "yarn.lock", "pnpm-lock.yaml"
+      ]
+    }
+  },
+  "migration": {
+    "classification_rules": {
+      "priority": "Higher priority rules are checked first",
+      "order": [
+        "whitelisted_files",
+        "security_files",
+        "config_files",
+        "test_files",
+        "script_files",
+        "documentation_files",
+        "source_files",
+        "asset_files",
+        "data_files"
+      ]
+    },
+    "safety": {
+      "never_move": {
+        "description": "Files that should NEVER be moved automatically",
+        "patterns": [
+          ".env", ".env.*",
+          "*.key", "*.pem", "*.crt",
+          "*.p12", "*.pfx",
+          "*credentials*", "*secret*"
+        ]
+      },
+      "backup_before_migration": true,
+      "rollback_capability_required": true,
+      "dry_run_recommended": true
+    }
+  },
+  "validation": {
+    "severity_levels": {
+      "error": {
+        "description": "Violations that MUST be fixed",
+        "violations": [
+          "source_files_in_root",
+          "missing_required_folders"
+        ],
+        "action": "Block operations in strict mode"
+      },
+      "warning": {
+        "description": "Violations that SHOULD be fixed",
+        "violations": [
+          "non_standard_root_files",
+          "missing_recommended_folders",
+          "scripts_in_root",
+          "docs_in_root"
+        ],
+        "action": "Report but don't block"
+      },
+      "info": {
+        "description": "Informational notices",
+        "violations": [
+          "missing_optional_folders",
+          "unusual_file_placement"
+        ],
+        "action": "Log only"
+      }
+    }
+  },
+  "_metadata": {
+    "created": "2025-11-02",
+    "last_updated": "2025-11-02",
+    "schema_version": "1.0.0",
+    "compatible_with": "wow-system >= 5.4.3",
+    "changelog": "See CHANGELOG.md for version history"
+  },
+  "_comments": {
+    "purpose": "This file is the SINGLE SOURCE OF TRUTH for WoW project structure standards",
+    "usage": "Tools should source this config, never hardcode structure rules",
+    "versioning": "Tied to wow-system version for compatibility tracking",
+    "extensibility": "Framework exceptions can be added without changing core structure",
+    "migration_guide": "Use migration.classification_rules for automated migrations",
+    "validation": "Use validation.severity_levels for enforcement policies"
+  }
+}
