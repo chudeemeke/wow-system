@@ -1,14 +1,15 @@
 # WoW System - Current Truth
-Generated: 2025-10-05T09:24:45.345Z
-Generation Time: 5.02s
+Generated: 2025-11-28T22:34:45.424Z
+Generation Time: 0.72s
 
 ## ⚠️ Warnings
 - **validation**: Version consistency - Required validation failed
 - **validation**: All handlers have tests - Required validation failed
 - **validation**: Core modules present - Required validation failed
+- **validation**: Hook executable - Required validation failed
 - **validation**: Config file exists - Required validation failed
 
-## Status: 1/5 validations passed
+## Status: 0/5 validations passed
 
 ## Project State
 
@@ -17,7 +18,7 @@ Generation Time: 5.02s
 #### Version [ESSENTIAL]
 ```bash
 $ grep 'readonly WOW_VERSION=' src/core/utils.sh | cut -d'"' -f2
-5.0.1
+5.4.4
 ```
 
 #### Description [ESSENTIAL]
@@ -42,30 +43,36 @@ Chude <chude@emeke.org>
 #### Total Modules [ESSENTIAL]
 ```bash
 $ find src -name '*.sh' -type f | wc -l
-26
+40
 ```
 
 #### Core Modules
 ```bash
 $ ls -1 src/core/*.sh | xargs -n1 basename | sed 's/.sh//'
 config-loader
+fast-path-validator
 orchestrator
 session-manager
 state-manager
+tool-registry
 utils
+version-detector
 ```
 
 #### Security Handlers [ESSENTIAL]
 ```bash
 $ ls -1 src/handlers/*.sh | xargs -n1 basename | sed 's/-handler.sh//' | sed 's/.sh//'
 b
+custom-rule-helper
 edit
 glob
 grep
 handler-router
+notebookedit
 read
 task
 webfetch
+websearch
 write
 ```
 
@@ -83,12 +90,14 @@ $ ls -1 src/security/*.sh 2>/dev/null | xargs -n1 basename | sed 's/.sh//' || ec
 credential-detector
 credential-redactor
 credential-scanner
+security-constants
 ```
 
 #### UI Components
 ```bash
 $ ls -1 src/ui/*.sh 2>/dev/null | xargs -n1 basename | sed 's/.sh//' || echo 'None'
 display
+score-display
 ```
 
 #### Design Patterns
@@ -116,12 +125,13 @@ wow-email-setup
 #### Total Tests [ESSENTIAL]
 ```bash
 $ find tests -name 'test-*.sh' -type f | wc -l
-23
+33
 ```
 
 #### Test Suites
 ```bash
 $ ls -1 tests/test-*.sh | xargs -n1 basename | sed 's/test-//' | sed 's/.sh//'
+analytics-collector
 b-handler.sh
 capture-engine
 config-loader
@@ -130,17 +140,26 @@ doc-sync
 edit-handler
 email-sender
 event-bus
+fast-path-validator
 framework
 glob-handler
 grep-handler
 handler-factory
+handler-router-integration
 install-manager
+notebookedit-handler
 orchestrator
 read-handler
+score-display
 session-manager
 state-manager
+stress-framework
 task-handler
+tool-registry
+tool-tracking-integration
+version-management
 webfetch-handler
+websearch-handler
 wow-capture-cli
 write-handler
 ```
@@ -154,7 +173,7 @@ $ grep -h 'assert_' tests/test-*manager.sh tests/test-*loader.sh 2>/dev/null | w
 #### Test Coverage - Handlers
 ```bash
 $ grep -h 'assert_' tests/test-*-handler.sh 2>/dev/null | wc -l
-116
+154
 ```
 
 #### Test Coverage - Engines
@@ -168,13 +187,13 @@ $ grep -h 'assert_' tests/test-*-engine.sh 2>/dev/null | wc -l
 #### Handler Count [ESSENTIAL]
 ```bash
 $ ls -1 src/handlers/*-handler.sh 2>/dev/null | wc -l
-8
+10
 ```
 
 #### Handlers List
 ```bash
 $ ls -1 src/handlers/*.sh | xargs -n1 basename | sed 's/-handler.sh//' | tr '\n' ', ' | sed 's/, $//'
-bash,edit,glob,grep,handler-router.sh,read,task,webfetch,write,
+bash,custom-rule-helper.sh,edit,glob,grep,handler-router.sh,notebookedit,read,task,webfetch,websearch,write,
 ```
 
 #### Capture Engine Status [ESSENTIAL]
@@ -206,37 +225,37 @@ docTruth v1.0.2
 #### Total Lines of Code
 ```bash
 $ find src -name '*.sh' -type f -exec wc -l {} + | tail -1 | awk '{print $1}'
-10582
+15304
 ```
 
 #### Core Module LOC
 ```bash
 $ find src/core -name '*.sh' -type f -exec wc -l {} + | tail -1 | awk '{print $1}'
-2160
+3139
 ```
 
 #### Handler LOC
 ```bash
 $ find src/handlers -name '*.sh' -type f -exec wc -l {} + 2>/dev/null | tail -1 | awk '{print $1}' || echo '0'
-3289
+4735
 ```
 
 #### Test LOC
 ```bash
 $ find tests -name '*.sh' -type f -exec wc -l {} + 2>/dev/null | tail -1 | awk '{print $1}' || echo '0'
-9855
+17872
 ```
 
 #### Public Functions
 ```bash
 $ grep -rh '^[a-z_]*() {' src/ | wc -l
-367
+488
 ```
 
 #### Documentation Files
 ```bash
 $ find . -maxdepth 3 -name '*.md' -type f | grep -v node_modules | wc -l
-33
+51
 ```
 
 ### Configuration
@@ -282,17 +301,17 @@ Yes (jq-1.7)
 #### libsecret Available
 ```bash
 $ which secret-tool >/dev/null 2>&1 && echo 'Yes' || echo 'No (optional)'
-Yes
+No (optional)
 ```
 
 ## Validation Results
 
 | Status | Validation | Result | Required |
 |--------|------------|--------|----------|
-| ❌ | Version consistency | ✗ Version mismatch: code=5.0.1, readme= | Yes |
-| ❌ | All handlers have tests | ✗ Handler/test mismatch: 9 handlers, 8 tests | Yes |
+| ❌ | Version consistency | ✗ Version mismatch: code=5.4.4, readme= | Yes |
+| ❌ | All handlers have tests | ✗ Handler/test mismatch: 12 handlers, 10 tests | Yes |
 | ❌ | Core modules present | ✗ Missing core modules: file-storage.sh | Yes |
-| ✅ | Hook executable | ✓ Hook is executable | Yes |
+| ❌ | Hook executable | ✗ Hook not executable | Yes |
 | ❌ | Config file exists | ✗ No config | Yes |
 
 ## Working Examples
@@ -319,14 +338,14 @@ doctruth
 
 | Metric | Value |
 |--------|-------|
-| Hook execution time | 0m0.519s |
-| Total codebase size | 360K |
-| Total test suite size | 340K |
+| Hook execution time | 0m0.294s |
+| Total codebase size | 596K |
+| Total test suite size | 648K |
 
 ## Environment
 
 - **Operating System**: Linux
-- **OS Version**: 6.6.87.2-microsoft-standard-WSL2
+- **OS Version**: 6.11.0-1018-azure
 - **Shell**: /bin/bash
 - **Installation Location**: /root/wow-system
 
