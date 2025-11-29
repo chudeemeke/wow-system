@@ -41,13 +41,16 @@ fi
 #------------------------------------------------------------------------------
 
 # Config directory (set by domain_lists_init)
-DOMAIN_CONFIG_DIR=""
+# Only initialize if not already set (for test mode re-sourcing)
+if [[ -z "${DOMAIN_CONFIG_DIR+x}" ]]; then
+    DOMAIN_CONFIG_DIR=""
+fi
 
 # TIER 1: Critical Security (Hardcoded - IMMUTABLE)
 # These patterns protect against SSRF and metadata attacks
 # Only initialize if not already set (for test mode re-sourcing)
 if [[ -z "${DOMAIN_TIER1_BLOCKED+x}" ]]; then
-    declare -a DOMAIN_TIER1_BLOCKED=()
+    declare -ag DOMAIN_TIER1_BLOCKED=()
 fi
 
 # Populate TIER 1 (always reset to ensure consistency)
@@ -108,19 +111,19 @@ DOMAIN_TIER1_BLOCKED=(
 # TIER 2: System Defaults (Config - APPEND-ONLY)
 # Only declare if not already set (for test mode re-sourcing)
 if [[ -z "${DOMAIN_TIER2_SAFE+x}" ]]; then
-    declare -a DOMAIN_TIER2_SAFE=()
+    declare -ag DOMAIN_TIER2_SAFE=()
 fi
 if [[ -z "${DOMAIN_TIER2_BLOCKED+x}" ]]; then
-    declare -a DOMAIN_TIER2_BLOCKED=()
+    declare -ag DOMAIN_TIER2_BLOCKED=()
 fi
 
 # TIER 3: User Custom (Config - FULLY EDITABLE)
 # Only declare if not already set (for test mode re-sourcing)
 if [[ -z "${DOMAIN_TIER3_SAFE+x}" ]]; then
-    declare -a DOMAIN_TIER3_SAFE=()
+    declare -ag DOMAIN_TIER3_SAFE=()
 fi
 if [[ -z "${DOMAIN_TIER3_BLOCKED+x}" ]]; then
-    declare -a DOMAIN_TIER3_BLOCKED=()
+    declare -ag DOMAIN_TIER3_BLOCKED=()
 fi
 
 #------------------------------------------------------------------------------

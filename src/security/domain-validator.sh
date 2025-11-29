@@ -67,11 +67,21 @@ domain_extract_from_url() {
     # Strip protocol (http://, https://, etc.)
     domain="${domain#*://}"
 
-    # Strip path (everything after first /)
-    domain="${domain%%/*}"
+    # Handle IPv6 in brackets: [fe80::1]:8080 → fe80::1
+    if [[ "$domain" =~ ^\[([^]]+)\](:[0-9]+)?(/.*)?$ ]]; then
+        domain="${BASH_REMATCH[1]}"
+    else
+        # Strip path (everything after first /)
+        domain="${domain%%/*}"
 
-    # Strip port (everything after :)
-    domain="${domain%%:*}"
+        # Strip port (everything after :) - but only for IPv4/domains
+        # IPv6 addresses have multiple colons, so detect them first
+        if [[ ! "$domain" =~ : ]] || [[ "$domain" =~ ^[^:]+:[0-9]+$ ]]; then
+            # Either no colon (domain only) or IPv4:port pattern
+            domain="${domain%%:*}"
+        fi
+        # else: IPv6 address with multiple colons, keep as-is
+    fi
 
     # Strip trailing dot (DNS format)
     domain="${domain%.}"
