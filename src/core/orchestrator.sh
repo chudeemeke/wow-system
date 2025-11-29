@@ -200,7 +200,9 @@ wow_init() {
 
     # v5.0: Publish system_initialized event
     if [[ "${_WOW_EVENTS_ENABLED}" == "true" ]] && type event_bus_publish &>/dev/null; then
-        event_bus_publish "system_initialized" "{\"version\":\"5.0.0\"}" 2>/dev/null || true
+        local version
+        version=$(wow_get_version)
+        event_bus_publish "system_initialized" "{\"version\":\"${version}\"}" 2>/dev/null || true
     fi
 
     return 0

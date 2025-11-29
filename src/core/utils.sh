@@ -15,7 +15,7 @@ set -euo pipefail
 # Constants
 # ============================================================================
 
-readonly WOW_VERSION="5.4.4"
+readonly WOW_VERSION="6.0.0"
 readonly WOW_HOME="${WOW_HOME:-${HOME}/.claude/wow-system}"
 readonly WOW_LOG_DIR="${WOW_LOG_DIR:-${WOW_HOME}/logs}"
 readonly WOW_DATA_DIR="${WOW_DATA_DIR:-${WOW_HOME}/data}"

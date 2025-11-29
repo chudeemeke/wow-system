@@ -4,11 +4,50 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**WoW System v5.4.2** - Ways of Working Enforcement for Claude Code
+**WoW System v6.0.0** - Ways of Working Enforcement for Claude Code
 
 A production-grade defensive security framework that intercepts Claude Code tool calls to prevent dangerous operations, enforce best practices, and maintain behavioral scoring.
 
 **CRITICAL**: This codebase implements defensive security controls. All changes must maintain security guarantees and pass comprehensive testing.
+
+## What's New in v6.0.0
+
+### Three-Tier Domain Validation System
+v6.0.0 introduces a comprehensive domain validation architecture that replaces hardcoded domain lists with a flexible, user-customizable system:
+
+**TIER 1: Critical Security (Immutable)**
+- 36+ SSRF/metadata attack patterns hardcoded
+- Cannot be overridden by users
+- Blocks: localhost, 127.0.0.1, 169.254.169.254, AWS/GCP/Azure metadata, Kubernetes endpoints
+
+**TIER 2: System Defaults (Config - Append-Only)**
+- 50+ trusted domains shipped with WoW (GitHub, Stack Overflow, PyPI, npm, etc.)
+- Users can ADD domains but cannot REMOVE system defaults
+- File: `config/security/system-safe-domains.conf`
+
+**TIER 3: User Custom (Config - Fully Editable)**
+- User-specific safe and blocked domain lists
+- Full control for company/project domains
+- Files: `config/security/custom-safe-domains.conf`, `config/security/custom-blocked-domains.conf`
+
+**Interactive Prompts (Phase 3)**
+- Unknown domains trigger user prompt with 4 options:
+  1. Block this request
+  2. Allow this time only (session-based)
+  3. Add to my safe list (persistent)
+  4. Always block this domain (persistent)
+- Session-based tracking prevents re-prompting
+- Non-interactive fallback (WARN instead of block)
+
+**Handler Integration**
+- webfetch-handler.sh: Refactored to use domain_validate()
+- websearch-handler.sh: Refactored for allowed_domains validation
+- Backward-compatible design (fails gracefully if domain-validator unavailable)
+
+**Test Coverage**
+- 48 domain validation tests (100% passing)
+- 72 handler tests (100% passing)
+- Zero regressions in existing functionality
 
 ## Architecture
 
@@ -29,9 +68,10 @@ The orchestrator loads modules in strict dependency order:
 1. Design Patterns (v5.0+): DI Container, Event Bus, Handler Factory
 2. Core Foundation: utils.sh → file-storage.sh → state-manager.sh → config-loader.sh → session-manager.sh
 3. Security Constants (v5.4.2+): security-constants.sh (shared SSRF patterns, Single Source of Truth)
-4. Handlers: Loaded on-demand by handler-router.sh
-5. Engines: scoring-engine.sh, risk-assessor.sh, capture-engine.sh (v5.0+)
-6. Security: credential-detector.sh, credential-storage.sh (v5.0+)
+4. Domain Validation (v6.0.0+): domain-lists.sh → domain-validator.sh (three-tier domain validation)
+5. Handlers: Loaded on-demand by handler-router.sh
+6. Engines: scoring-engine.sh, risk-assessor.sh, capture-engine.sh (v5.0+)
+7. Security: credential-detector.sh, credential-storage.sh (v5.0+)
 
 **Double-sourcing protection**: All modules check WOW_*_LOADED guards to prevent re-initialization.
 
@@ -328,7 +368,7 @@ session_stats
 
 ## Version & Release Management
 
-Current version: **5.0.1** (in `src/core/utils.sh`)
+Current version: **6.0.0** (in `src/core/utils.sh`)
 
 Version bumps require:
 1. Update `WOW_VERSION` in `src/core/utils.sh`
@@ -362,7 +402,7 @@ Per global CLAUDE.md rules:
 
 **CRITICAL**: This project was rebuilt from v4.1 after v4.0.2 was accidentally deleted on September 30, 2025 via `rm -rf /mnt/c/Users/Destiny/.claude/`. The current architecture (standalone project in /Projects/ with symlink deployment to .claude/) was specifically designed to prevent this from happening again.
 
-See `CONTEXT.md` for complete history: v1.0 → v2.0 → v3.5.0 → v4.0 → v4.0.2 (lost) → v4.1 → v5.0 → v5.0.1 → v5.4.0 → v5.4.1 → v5.4.2
+See `CONTEXT.md` for complete history: v1.0 → v2.0 → v3.5.0 → v4.0 → v4.0.2 (lost) → v4.1 → v5.0 → v5.0.1 → v5.4.0 → v5.4.1 → v5.4.2 → v6.0.0
 
 ## Self-Documentation Paradox
 
