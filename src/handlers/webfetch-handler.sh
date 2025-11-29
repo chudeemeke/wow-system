@@ -21,6 +21,7 @@ readonly WOW_WEBFETCH_HANDLER_LOADED=1
 _WEBFETCH_HANDLER_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${_WEBFETCH_HANDLER_DIR}/../core/utils.sh"
 source "${_WEBFETCH_HANDLER_DIR}/../security/security-constants.sh"
+source "${_WEBFETCH_HANDLER_DIR}/../security/domain-validator.sh" 2>/dev/null || true
 source "${_WEBFETCH_HANDLER_DIR}/custom-rule-helper.sh" 2>/dev/null || true
 
 set -uo pipefail
@@ -29,14 +30,9 @@ set -uo pipefail
 # Constants - Blocked Patterns
 # ============================================================================
 
-# Note: BLOCKED_IP_PATTERNS now sourced from security-constants.sh (Single Source of Truth)
-
-# Blocked hostnames
-readonly -a BLOCKED_HOSTNAMES=(
-    "^localhost$"
-    "^127\.0\.0\.1$"
-    "^\[::1\]$"
-)
+# Note: BLOCKED_IP_PATTERNS sourced from security-constants.sh (Single Source of Truth)
+# Note: v6.0.0 - Domain validation (BLOCKED_HOSTNAMES, SAFE_DOMAINS) moved to domain-validator.sh
+#       Uses three-tier architecture: TIER 1 (critical), TIER 2 (system), TIER 3 (user)
 
 # Blocked protocols
 readonly -a BLOCKED_PROTOCOLS=(
@@ -90,37 +86,10 @@ readonly -a SUSPICIOUS_TLDS=(
 )
 
 # ============================================================================
-# Constants - Safe Domains
+# Handler-Specific Checks (v6.0.0)
 # ============================================================================
-
-# Well-known safe domains (documentation, development resources)
-readonly -a SAFE_DOMAINS=(
-    "github\.com"
-    "gitlab\.com"
-    "stackoverflow\.com"
-    "stackexchange\.com"
-    "developer\.mozilla\.org"
-    "docs\.python\.org"
-    "nodejs\.org"
-    "npmjs\.(org|com)"
-    "pypi\.org"
-    "rubygems\.org"
-    "packagist\.org"
-    "crates\.io"
-    "docs\.rs"
-    "readthedocs\.(io|org)"
-    "w3\.org"
-    "ietf\.org"
-    "rfc-editor\.org"
-    "wikipedia\.org"
-    "wikimedia\.org"
-    "google\.(com|co\.uk)"
-    "microsoft\.(com|docs)"
-    "apple\.(com|developer)"
-    "docs\.anthropic\.com"
-    "docs\.claude\.com"
-    "openai\.com"
-)
+# These patterns are warnings specific to WebFetch context
+# Domain allow/block decisions are handled by domain-validator.sh
 
 # ============================================================================
 # Private: URL Parsing & Validation
@@ -157,18 +126,16 @@ _is_private_ip() {
     return 1  # Not private
 }
 
-# Check if hostname is blocked
+# v6.0.0: Domain blocking now handled by domain_validate() in domain-validator.sh
+# This function is kept for backward compatibility but is deprecated
 _is_blocked_hostname() {
     local domain="$1"
-
-    for pattern in "${BLOCKED_HOSTNAMES[@]}"; do
-        if echo "${domain}" | grep -qiE "${pattern}"; then
-            wow_warn "SECURITY: Blocked hostname: ${domain}"
-            return 0  # Is blocked
-        fi
-    done
-
-    return 1  # Not blocked
+    # Delegate to domain validator
+    if type domain_is_critical_blocked &>/dev/null; then
+        domain_is_critical_blocked "$domain"
+        return $?
+    fi
+    return 1  # Fallback: not blocked
 }
 
 # Check if protocol is blocked
@@ -256,16 +223,16 @@ _has_suspicious_tld() {
 }
 
 # Check if domain is safe/well-known
+# v6.0.0: Safe domain checking now handled by domain_validate() in domain-validator.sh
+# This function is kept for backward compatibility but is deprecated
 _is_safe_domain() {
     local domain="$1"
-
-    for pattern in "${SAFE_DOMAINS[@]}"; do
-        if echo "${domain}" | grep -qiE "${pattern}"; then
-            return 0  # Is safe
-        fi
-    done
-
-    return 1  # Not explicitly safe
+    # Delegate to domain validator
+    if type domain_is_safe &>/dev/null; then
+        domain_is_safe "$domain"
+        return $?
+    fi
+    return 1  # Fallback: not in safe list
 }
 
 # Check if domain is an IP address
@@ -319,10 +286,48 @@ _validate_url() {
         return 1  # Invalid - private IP
     fi
 
-    # Check for blocked hostnames
-    if _is_blocked_hostname "${domain}"; then
-        return 1  # Invalid - blocked hostname
+    # ========================================================================
+    # v6.0.0: Three-Tier Domain Validation
+    # ========================================================================
+    # Use domain-validator.sh for comprehensive domain checking
+    # Returns: 0=ALLOW, 1=WARN, 2=BLOCK
+    if type domain_validate &>/dev/null; then
+        domain_validate "${domain}" "webfetch"
+        local validation_result=$?
+
+        case "${validation_result}" in
+            2)
+                # BLOCK: Domain is in block list or fails validation
+                wow_warn "SECURITY: Domain validation BLOCKED: ${domain}"
+                session_track_event "security_violation" "DOMAIN_BLOCKED:${domain}" 2>/dev/null || true
+                return 1  # Invalid - blocked by domain validator
+                ;;
+            1)
+                # WARN: Unknown domain (not in safe or block lists)
+                wow_warn "⚠️  Unknown domain (not in safe list, allowing but monitoring): ${domain}"
+                session_track_event "domain_warning" "UNKNOWN_DOMAIN:${domain}" 2>/dev/null || true
+                # Continue with other checks
+                ;;
+            0)
+                # ALLOW: Domain is in safe list
+                # Continue with other checks
+                ;;
+        esac
+    else
+        # Fallback: Use deprecated _is_blocked_hostname() if domain-validator not available
+        if _is_blocked_hostname "${domain}"; then
+            return 1  # Invalid - blocked hostname
+        fi
+
+        # Warn if not in safe list
+        if ! _is_safe_domain "${domain}"; then
+            wow_warn "⚠️  Domain not in safe list (allowing but monitoring): ${domain}"
+        fi
     fi
+
+    # ========================================================================
+    # Handler-Specific Checks (warnings, not blocks)
+    # ========================================================================
 
     # Check for credentials in URL (warn but allow)
     _has_url_credentials "${url}" || true
@@ -351,11 +356,6 @@ _validate_url() {
     # Warn if IP-based URL (not localhost/private)
     if _is_ip_address "${domain}"; then
         wow_warn "ℹ️  IP-based URL (not domain name): ${domain}"
-    fi
-
-    # v5.4.1: Check if domain is in safe list (warning only, not blocking)
-    if ! _is_safe_domain "${domain}"; then
-        wow_warn "⚠️  Domain not in safe list (allowing but monitoring): ${domain}"
     fi
 
     return 0  # Valid

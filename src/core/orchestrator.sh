@@ -156,6 +156,26 @@ wow_init() {
     fi
 
     # ========================================================================
+    # v6.0.0: Load security modules (BEFORE handlers)
+    # ========================================================================
+    # Load domain validation system (three-tier architecture)
+    _load_module "domain-lists" "${module_dir}/../security/domain-lists.sh" 2>/dev/null || {
+        wow_warn "Failed to load domain-lists module" 2>/dev/null || true
+    }
+
+    _load_module "domain-validator" "${module_dir}/../security/domain-validator.sh" 2>/dev/null || {
+        wow_warn "Failed to load domain-validator module" 2>/dev/null || true
+    }
+
+    # Initialize domain lists from config
+    if type domain_lists_init &>/dev/null; then
+        local config_security_dir="${WOW_HOME}/config/security"
+        domain_lists_init "${config_security_dir}" 2>/dev/null || {
+            wow_warn "Failed to initialize domain lists" 2>/dev/null || true
+        }
+    fi
+
+    # ========================================================================
     # Load handlers (CRITICAL: needed for hook to work)
     # ========================================================================
     wow_load_handlers 2>/dev/null || {
