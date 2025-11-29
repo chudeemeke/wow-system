@@ -1,6 +1,6 @@
 # WoW System - Current Truth
-Generated: 2025-11-28T22:34:45.424Z
-Generation Time: 0.72s
+Generated: 2025-11-29T02:12:58.037Z
+Generation Time: 0.663s
 
 ## ⚠️ Warnings
 - **validation**: Version consistency - Required validation failed
@@ -255,7 +255,7 @@ $ grep -rh '^[a-z_]*() {' src/ | wc -l
 #### Documentation Files
 ```bash
 $ find . -maxdepth 3 -name '*.md' -type f | grep -v node_modules | wc -l
-51
+53
 ```
 
 ### Configuration
@@ -338,7 +338,7 @@ doctruth
 
 | Metric | Value |
 |--------|-------|
-| Hook execution time | 0m0.294s |
+| Hook execution time | 0m0.298s |
 | Total codebase size | 596K |
 | Total test suite size | 648K |
 
