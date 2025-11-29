@@ -317,25 +317,221 @@ domain_add_custom() {
 }
 
 #------------------------------------------------------------------------------
-# Public API - User Prompt (Stub for Phase 3)
+# Session-Based Domain Tracking (Phase 3)
 #------------------------------------------------------------------------------
 
-# Prompt user for unknown domain (stub for Phase 3)
+# Get session decisions file path
+_domain_get_session_file() {
+    local session_dir="${WOW_SESSION_DIR:-${HOME}/.wow-data/sessions/latest}"
+    echo "${session_dir}/domain-decisions.json"
+}
+
+# Check if domain has a session-based decision
+# Args: $1 = domain
+# Returns: 0=has decision, 1=no decision
+# Outputs: "allow" or "block" on stdout if decision exists
+_domain_get_session_decision() {
+    local domain="$1"
+    local decisions_file
+    decisions_file=$(_domain_get_session_file)
+
+    if [[ ! -f "${decisions_file}" ]]; then
+        return 1  # No decisions file
+    fi
+
+    # Try to extract decision using jq (if available)
+    if type -t wow_has_jq >/dev/null 2>&1 && wow_has_jq; then
+        local decision
+        decision=$(jq -r --arg domain "$domain" '.[$domain] // empty' "${decisions_file}" 2>/dev/null)
+        if [[ -n "${decision}" ]]; then
+            echo "${decision}"
+            return 0
+        fi
+    else
+        # Fallback: grep-based extraction
+        if grep -q "\"${domain}\"" "${decisions_file}" 2>/dev/null; then
+            local decision
+            decision=$(grep "\"${domain}\"" "${decisions_file}" | grep -oP ':\s*"\K(allow|block)' | head -1)
+            if [[ -n "${decision}" ]]; then
+                echo "${decision}"
+                return 0
+            fi
+        fi
+    fi
+
+    return 1  # No decision found
+}
+
+# Store session-based domain decision
+# Args: $1 = domain, $2 = decision ("allow" or "block")
+# Returns: 0 on success, 1 on error
+_domain_store_session_decision() {
+    local domain="$1"
+    local decision="$2"
+    local decisions_file
+    decisions_file=$(_domain_get_session_file)
+
+    # Create directory if needed
+    local decisions_dir
+    decisions_dir=$(dirname "${decisions_file}")
+    mkdir -p "${decisions_dir}" 2>/dev/null || return 1
+
+    # Initialize file if it doesn't exist
+    if [[ ! -f "${decisions_file}" ]]; then
+        echo '{}' > "${decisions_file}" 2>/dev/null || return 1
+    fi
+
+    # Update decision using jq (if available)
+    if type -t wow_has_jq >/dev/null 2>&1 && wow_has_jq; then
+        local temp_file="${decisions_file}.tmp.$$"
+        jq --arg domain "$domain" --arg decision "$decision" \
+           '.[$domain] = $decision' "${decisions_file}" > "${temp_file}" 2>/dev/null && \
+        mv "${temp_file}" "${decisions_file}" 2>/dev/null || {
+            rm -f "${temp_file}" 2>/dev/null
+            return 1
+        }
+    else
+        # Fallback: simple append (not perfect but works)
+        # Note: This doesn't handle updates, only additions
+        if ! grep -q "\"${domain}\"" "${decisions_file}" 2>/dev/null; then
+            # Simple JSON manipulation (not robust, but fail-safe)
+            sed -i 's/}$//' "${decisions_file}" 2>/dev/null || return 1
+            if [[ $(wc -l < "${decisions_file}") -gt 1 ]]; then
+                echo ",  \"${domain}\": \"${decision}\"" >> "${decisions_file}"
+            else
+                echo "  \"${domain}\": \"${decision}\"" >> "${decisions_file}"
+            fi
+            echo "}" >> "${decisions_file}"
+        fi
+    fi
+
+    return 0
+}
+
+#------------------------------------------------------------------------------
+# Public API - User Prompt (Phase 3)
+#------------------------------------------------------------------------------
+
+# Prompt user for unknown domain (Phase 3 implementation)
 # Args: $1 = domain, $2 = context
 # Returns: 0=allow, 1=warn, 2=block
 domain_prompt_user() {
     local domain="$1"
     local context="${2:-unknown}"
 
-    # For Phase 1, this is a stub
-    # Phase 3 will implement interactive prompts
-
-    if type -t wow_log >/dev/null 2>&1; then
-        wow_log "WARN" "Unknown domain: $domain (context: $context) - prompting not yet implemented"
+    # Check if domain already has a session decision
+    local session_decision
+    if session_decision=$(_domain_get_session_decision "$domain"); then
+        case "${session_decision}" in
+            allow)
+                if type -t wow_log >/dev/null 2>&1; then
+                    wow_log "INFO" "Domain allowed by session decision: $domain"
+                fi
+                return 0
+                ;;
+            block)
+                if type -t wow_log >/dev/null 2>&1; then
+                    wow_log "WARN" "Domain blocked by session decision: $domain"
+                fi
+                return 2
+                ;;
+        esac
     fi
 
-    # Default behavior: WARN (return 1)
-    return 1
+    # Check if interactive (stdin is a terminal)
+    if [[ ! -t 0 ]] || [[ -n "${WOW_NON_INTERACTIVE:-}" ]]; then
+        # Non-interactive: default to WARN
+        if type -t wow_log >/dev/null 2>&1; then
+            wow_log "WARN" "Unknown domain (non-interactive): $domain (context: $context)"
+        fi
+        return 1
+    fi
+
+    # Interactive prompt
+    echo "" >&2
+    echo "═══════════════════════════════════════════════════════════════" >&2
+    echo "  WoW Security: Unknown Domain Detected" >&2
+    echo "═══════════════════════════════════════════════════════════════" >&2
+    echo "" >&2
+    echo "  Domain:  ${domain}" >&2
+    echo "  Context: ${context}" >&2
+    echo "" >&2
+    echo "  This domain is not in the safe list. What should I do?" >&2
+    echo "" >&2
+    echo "  [1] Block this request" >&2
+    echo "  [2] Allow this time only (session-based)" >&2
+    echo "  [3] Add to my safe list (persistent)" >&2
+    echo "  [4] Always block this domain (persistent)" >&2
+    echo "" >&2
+    echo "═══════════════════════════════════════════════════════════════" >&2
+    echo -n "Choice [1-4]: " >&2
+
+    # Read user input with timeout
+    local choice=""
+    read -r -t 30 choice </dev/tty 2>/dev/null || choice="1"
+
+    echo "" >&2
+
+    case "${choice}" in
+        1)
+            # Block this request
+            if type -t wow_log >/dev/null 2>&1; then
+                wow_log "BLOCK" "User chose to block: $domain"
+            fi
+            return 2
+            ;;
+        2)
+            # Allow this time only (session-based)
+            _domain_store_session_decision "$domain" "allow"
+            if type -t wow_log >/dev/null 2>&1; then
+                wow_log "INFO" "User allowed (session): $domain"
+            fi
+            return 0
+            ;;
+        3)
+            # Add to safe list (persistent)
+            if domain_add_custom "$domain" "safe"; then
+                # Reload domain lists to include new domain
+                if type -t domain_lists_reload >/dev/null 2>&1; then
+                    domain_lists_reload 2>/dev/null || true
+                fi
+                if type -t wow_log >/dev/null 2>&1; then
+                    wow_log "INFO" "User added to safe list: $domain"
+                fi
+                return 0
+            else
+                if type -t wow_log >/dev/null 2>&1; then
+                    wow_log "ERROR" "Failed to add domain to safe list: $domain"
+                fi
+                return 2
+            fi
+            ;;
+        4)
+            # Always block (persistent)
+            if domain_add_custom "$domain" "blocked"; then
+                # Reload domain lists to include new block
+                if type -t domain_lists_reload >/dev/null 2>&1; then
+                    domain_lists_reload 2>/dev/null || true
+                fi
+                if type -t wow_log >/dev/null 2>&1; then
+                    wow_log "WARN" "User added to block list: $domain"
+                fi
+                return 2
+            else
+                if type -t wow_log >/dev/null 2>&1; then
+                    wow_log "ERROR" "Failed to add domain to block list: $domain"
+                fi
+                return 2
+            fi
+            ;;
+        *)
+            # Invalid choice - default to block (fail-safe)
+            if type -t wow_log >/dev/null 2>&1; then
+                wow_log "WARN" "Invalid choice, blocking: $domain"
+            fi
+            return 2
+            ;;
+    esac
 }
 
 #------------------------------------------------------------------------------
