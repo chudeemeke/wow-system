@@ -241,6 +241,30 @@ assert_dir_exists() {
 }
 
 # ============================================================================
+# Test Helpers
+# ============================================================================
+
+# Pass test with optional message
+pass() {
+    local message="${1:-Test passed}"
+    return 0
+}
+
+# Fail test with message
+fail() {
+    local message="${1:-Test failed}"
+    echo -e "    ${T_RED}${message}${T_RESET}"
+    return 1
+}
+
+# Skip test (note: this is different from test_skip, used within test functions)
+skip() {
+    local message="${1:-Test skipped}"
+    echo -e "    ${T_YELLOW}${message}${T_RESET}"
+    return 0
+}
+
+# ============================================================================
 # Test Lifecycle
 # ============================================================================
 
