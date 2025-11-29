@@ -1,6 +1,6 @@
 # WoW System - Current Truth
-Generated: 2025-11-29T02:12:58.037Z
-Generation Time: 0.663s
+Generated: 2025-11-29T15:29:29.199Z
+Generation Time: 0.676s
 
 ## ⚠️ Warnings
 - **validation**: Version consistency - Required validation failed
@@ -18,7 +18,7 @@ Generation Time: 0.663s
 #### Version [ESSENTIAL]
 ```bash
 $ grep 'readonly WOW_VERSION=' src/core/utils.sh | cut -d'"' -f2
-5.4.4
+6.0.0
 ```
 
 #### Description [ESSENTIAL]
@@ -43,7 +43,7 @@ Chude <chude@emeke.org>
 #### Total Modules [ESSENTIAL]
 ```bash
 $ find src -name '*.sh' -type f | wc -l
-40
+42
 ```
 
 #### Core Modules
@@ -90,6 +90,8 @@ $ ls -1 src/security/*.sh 2>/dev/null | xargs -n1 basename | sed 's/.sh//' || ec
 credential-detector
 credential-redactor
 credential-scanner
+domain-lists
+domain-validator
 security-constants
 ```
 
@@ -125,7 +127,7 @@ wow-email-setup
 #### Total Tests [ESSENTIAL]
 ```bash
 $ find tests -name 'test-*.sh' -type f | wc -l
-33
+37
 ```
 
 #### Test Suites
@@ -137,6 +139,8 @@ capture-engine
 config-loader
 di-container
 doc-sync
+domain-lists
+domain-validator
 edit-handler
 email-sender
 event-bus
@@ -147,10 +151,12 @@ grep-handler
 handler-factory
 handler-router-integration
 install-manager
+integration-domain-validation
 notebookedit-handler
 orchestrator
 read-handler
 score-display
+security-edge-cases
 session-manager
 state-manager
 stress-framework
@@ -225,37 +231,37 @@ docTruth v1.0.2
 #### Total Lines of Code
 ```bash
 $ find src -name '*.sh' -type f -exec wc -l {} + | tail -1 | awk '{print $1}'
-15304
+16346
 ```
 
 #### Core Module LOC
 ```bash
 $ find src/core -name '*.sh' -type f -exec wc -l {} + | tail -1 | awk '{print $1}'
-3139
+3161
 ```
 
 #### Handler LOC
 ```bash
 $ find src/handlers -name '*.sh' -type f -exec wc -l {} + 2>/dev/null | tail -1 | awk '{print $1}' || echo '0'
-4735
+4732
 ```
 
 #### Test LOC
 ```bash
 $ find tests -name '*.sh' -type f -exec wc -l {} + 2>/dev/null | tail -1 | awk '{print $1}' || echo '0'
-17872
+19893
 ```
 
 #### Public Functions
 ```bash
 $ grep -rh '^[a-z_]*() {' src/ | wc -l
-488
+512
 ```
 
 #### Documentation Files
 ```bash
 $ find . -maxdepth 3 -name '*.md' -type f | grep -v node_modules | wc -l
-53
+55
 ```
 
 ### Configuration
@@ -308,7 +314,7 @@ No (optional)
 
 | Status | Validation | Result | Required |
 |--------|------------|--------|----------|
-| ❌ | Version consistency | ✗ Version mismatch: code=5.4.4, readme= | Yes |
+| ❌ | Version consistency | ✗ Version mismatch: code=6.0.0, readme= | Yes |
 | ❌ | All handlers have tests | ✗ Handler/test mismatch: 12 handlers, 10 tests | Yes |
 | ❌ | Core modules present | ✗ Missing core modules: file-storage.sh | Yes |
 | ❌ | Hook executable | ✗ Hook not executable | Yes |
@@ -339,8 +345,8 @@ doctruth
 | Metric | Value |
 |--------|-------|
 | Hook execution time | 0m0.298s |
-| Total codebase size | 596K |
-| Total test suite size | 648K |
+| Total codebase size | 628K |
+| Total test suite size | 716K |
 
 ## Environment
 
