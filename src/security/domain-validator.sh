@@ -13,10 +13,16 @@
 #   domain_prompt_user(domain)            - Interactive prompt (stub)
 
 # Double-sourcing guard
-if [[ -n "${WOW_DOMAIN_VALIDATOR_LOADED:-}" ]]; then
+# Allow re-sourcing in test mode for test isolation
+if [[ -n "${WOW_DOMAIN_VALIDATOR_LOADED:-}" ]] && [[ -z "${WOW_TEST_MODE:-}" ]]; then
     return 0
 fi
-readonly WOW_DOMAIN_VALIDATOR_LOADED=1
+
+if [[ -z "${WOW_TEST_MODE:-}" ]]; then
+    readonly WOW_DOMAIN_VALIDATOR_LOADED=1
+else
+    WOW_DOMAIN_VALIDATOR_LOADED=1
+fi
 
 #------------------------------------------------------------------------------
 # Module Dependencies

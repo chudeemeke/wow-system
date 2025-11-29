@@ -16,10 +16,16 @@
 #   domain_is_user_blocked(domain)        - TIER 3 block check
 
 # Double-sourcing guard
-if [[ -n "${WOW_DOMAIN_LISTS_LOADED:-}" ]]; then
+# Allow re-sourcing in test mode for test isolation
+if [[ -n "${WOW_DOMAIN_LISTS_LOADED:-}" ]] && [[ -z "${WOW_TEST_MODE:-}" ]]; then
     return 0
 fi
-readonly WOW_DOMAIN_LISTS_LOADED=1
+
+if [[ -z "${WOW_TEST_MODE:-}" ]]; then
+    readonly WOW_DOMAIN_LISTS_LOADED=1
+else
+    WOW_DOMAIN_LISTS_LOADED=1
+fi
 
 #------------------------------------------------------------------------------
 # Module Dependencies
@@ -39,7 +45,13 @@ DOMAIN_CONFIG_DIR=""
 
 # TIER 1: Critical Security (Hardcoded - IMMUTABLE)
 # These patterns protect against SSRF and metadata attacks
-declare -a DOMAIN_TIER1_BLOCKED=(
+# Only initialize if not already set (for test mode re-sourcing)
+if [[ -z "${DOMAIN_TIER1_BLOCKED+x}" ]]; then
+    declare -a DOMAIN_TIER1_BLOCKED=()
+fi
+
+# Populate TIER 1 (always reset to ensure consistency)
+DOMAIN_TIER1_BLOCKED=(
     # Loopback
     "localhost"
     "127.0.0.1"
@@ -94,12 +106,22 @@ declare -a DOMAIN_TIER1_BLOCKED=(
 )
 
 # TIER 2: System Defaults (Config - APPEND-ONLY)
-declare -a DOMAIN_TIER2_SAFE=()
-declare -a DOMAIN_TIER2_BLOCKED=()
+# Only declare if not already set (for test mode re-sourcing)
+if [[ -z "${DOMAIN_TIER2_SAFE+x}" ]]; then
+    declare -a DOMAIN_TIER2_SAFE=()
+fi
+if [[ -z "${DOMAIN_TIER2_BLOCKED+x}" ]]; then
+    declare -a DOMAIN_TIER2_BLOCKED=()
+fi
 
 # TIER 3: User Custom (Config - FULLY EDITABLE)
-declare -a DOMAIN_TIER3_SAFE=()
-declare -a DOMAIN_TIER3_BLOCKED=()
+# Only declare if not already set (for test mode re-sourcing)
+if [[ -z "${DOMAIN_TIER3_SAFE+x}" ]]; then
+    declare -a DOMAIN_TIER3_SAFE=()
+fi
+if [[ -z "${DOMAIN_TIER3_BLOCKED+x}" ]]; then
+    declare -a DOMAIN_TIER3_BLOCKED=()
+fi
 
 #------------------------------------------------------------------------------
 # Helper Functions

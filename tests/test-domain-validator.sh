@@ -13,6 +13,9 @@ set -uo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/test-framework.sh"
 
+# Enable test mode to allow module re-sourcing in subshells
+export WOW_TEST_MODE=1
+
 # Export module paths for subshells
 export LISTS_MODULE="${SCRIPT_DIR}/../src/security/domain-lists.sh"
 export VALIDATOR_MODULE="${SCRIPT_DIR}/../src/security/domain-validator.sh"
@@ -90,12 +93,9 @@ EOF
 }
 
 # Helper to source modules and init (used in tests)
+# WOW_TEST_MODE=1 allows re-sourcing in test subshells
 init_validator_modules() {
-    # Unset loading guards to allow re-sourcing in subshells
-    unset WOW_DOMAIN_LISTS_LOADED
-    unset WOW_DOMAIN_VALIDATOR_LOADED
-
-    # Source modules
+    # Source modules (test mode allows re-sourcing)
     if [[ -f "${LISTS_MODULE}" ]]; then
         source "${LISTS_MODULE}"
         domain_lists_init "${TEST_CONFIG_DIR}"

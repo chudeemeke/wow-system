@@ -13,6 +13,9 @@ set -uo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/test-framework.sh"
 
+# Enable test mode to allow module re-sourcing in subshells
+export WOW_TEST_MODE=1
+
 # Export module path for subshells
 export MODULE_PATH="${SCRIPT_DIR}/../src/security/domain-lists.sh"
 
