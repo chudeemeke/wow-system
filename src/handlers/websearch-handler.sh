@@ -22,6 +22,7 @@ readonly WOW_WEBSEARCH_HANDLER_LOADED=1
 _WEBSEARCH_HANDLER_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${_WEBSEARCH_HANDLER_DIR}/../core/utils.sh"
 source "${_WEBSEARCH_HANDLER_DIR}/../security/security-constants.sh"
+source "${_WEBSEARCH_HANDLER_DIR}/../security/domain-validator.sh" 2>/dev/null || true
 source "${_WEBSEARCH_HANDLER_DIR}/custom-rule-helper.sh" 2>/dev/null || true
 
 set -uo pipefail
@@ -61,13 +62,8 @@ readonly -a SENSITIVE_QUERY_PATTERNS=(
 )
 
 # Note: BLOCKED_IP_PATTERNS now sourced from security-constants.sh (Single Source of Truth)
-
-# TIER 1: CRITICAL - Blocked domains
-readonly -a BLOCKED_DOMAINS=(
-    "^localhost$"
-    "^127\.0\.0\.1$"
-    "^\[::1\]$"
-)
+# Note: v6.0.0 - Domain validation (BLOCKED_DOMAINS) moved to domain-validator.sh
+#       Uses three-tier architecture: TIER 1 (critical), TIER 2 (system), TIER 3 (user)
 
 # TIER 2: SENSITIVE - Suspicious TLDs
 readonly -a SUSPICIOUS_TLDS=(
@@ -165,16 +161,17 @@ _is_private_ip() {
 }
 
 # Check if domain is blocked
+# v6.0.0: Domain blocking now handled by domain_validate() in domain-validator.sh
+# This function is kept for backward compatibility but is deprecated
 _is_blocked_domain() {
     local domain="$1"
-
-    for pattern in "${BLOCKED_DOMAINS[@]}"; do
-        if echo "${domain}" | grep -qiE "${pattern}"; then
+    # Delegate to domain validator
+    if type domain_is_critical_blocked &>/dev/null; then
+        if domain_is_critical_blocked "$domain"; then
             wow_warn "SECURITY: Blocked domain: ${domain}"
             return 0  # Is blocked
         fi
-    done
-
+    fi
     return 1  # Not blocked
 }
 
