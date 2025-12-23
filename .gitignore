@@ -36,8 +36,8 @@ dist/
 build/
 
 # .NET build artifacts
-tools/*/bin/
-tools/*/obj/
+**/bin/
+**/obj/
 
 # Runtime data (sensitive credentials and state)
 data/bypass/
