@@ -1,0 +1,291 @@
+#!/bin/bash
+# WoW System - Bypass Setup Command
+# Sets up the bypass passphrase for the first time
+# Author: Chude <chude@emeke.org>
+
+set -uo pipefail
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Bootstrap: Discover WOW_HOME and VERSION first (needed for --version)
+# ─────────────────────────────────────────────────────────────────────────────
+_discover_wow_home() {
+    local candidates=(
+        "${WOW_HOME:-}"
+        "${HOME}/.claude/wow-system"
+        "${HOME}/Projects/wow-system"
+        "$(dirname "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")")"
+    )
+    for candidate in "${candidates[@]}"; do
+        if [[ -n "${candidate}" && -f "${candidate}/src/security/bypass-core.sh" ]]; then
+            echo "${candidate}"
+            return 0
+        fi
+    done
+    return 1
+}
+
+WOW_HOME="$(_discover_wow_home)" || {
+    echo "Error: Cannot find WoW System" >&2
+    exit 1
+}
+
+VERSION="$(tr -d '[:space:]' < "${WOW_HOME}/VERSION" 2>/dev/null || echo "unknown")"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Global Options (handle before anything else)
+# ─────────────────────────────────────────────────────────────────────────────
+case "${1:-}" in
+    -h|--help|help)
+        cat << EOF
+
+  WoW
+  Setup
+
+  ────────────────────────────────────────
+
+  Usage
+    wow setup
+
+  Description
+    Configure the bypass passphrase for the first time,
+    or reset an existing passphrase.
+
+    Security Model:
+    • Passphrase stored as salted SHA512 hash
+    • Bypass requires interactive terminal (TTY)
+    • AI and scripts cannot activate bypass
+    • Catastrophic operations always blocked
+
+  Requirements
+    • Interactive terminal
+    • Minimum 12 character passphrase
+
+  Options
+    -h, --help      Show this help
+    -v, --version   Show version
+
+  See Also
+    wow bypass     Temporarily disable protection
+    wow status     Check current state
+
+EOF
+        exit 0
+        ;;
+    -v|--version|version)
+        echo "wow-bypass-setup ${VERSION}"
+        exit 0
+        ;;
+esac
+
+# ─────────────────────────────────────────────────────────────────────────────
+# TUI Colors and Styling
+# ─────────────────────────────────────────────────────────────────────────────
+C_RESET=$'\033[0m'
+C_BOLD=$'\033[1m'
+C_DIM=$'\033[2m'
+C_CYAN=$'\033[36m'
+C_GREEN=$'\033[32m'
+C_YELLOW=$'\033[33m'
+C_RED=$'\033[31m'
+C_WHITE=$'\033[97m'
+
+# Box drawing characters (rounded corners)
+BOX_H="─"
+BOX_V="│"
+BOX_TL="╭"
+BOX_TR="╮"
+BOX_BL="╰"
+BOX_BR="╯"
+
+# Icons
+ICON_CHECK="${C_GREEN}✓${C_RESET}"
+ICON_WARN="${C_YELLOW}⚠${C_RESET}"
+ICON_ERROR="${C_RED}✗${C_RESET}"
+ICON_LOCK="${C_CYAN}🔐${C_RESET}"
+ICON_KEY="${C_YELLOW}🔑${C_RESET}"
+
+# Print a styled header box
+print_header() {
+    local title="$1"
+    local width=50
+    local padding=$(( (width - ${#title} - 2) / 2 ))
+
+    echo ""
+    echo "${C_CYAN}${BOX_TL}$(printf "${BOX_H}%.0s" $(seq 1 $width))${BOX_TR}${C_RESET}"
+    echo "${C_CYAN}${BOX_V}${C_RESET}$(printf ' %.0s' $(seq 1 $padding))${C_BOLD}${C_WHITE}${title}${C_RESET}$(printf ' %.0s' $(seq 1 $((width - padding - ${#title}))))${C_CYAN}${BOX_V}${C_RESET}"
+    echo "${C_CYAN}${BOX_BL}$(printf "${BOX_H}%.0s" $(seq 1 $width))${BOX_BR}${C_RESET}"
+    echo ""
+}
+
+print_section() {
+    local title="$1"
+    echo "${C_CYAN}${C_BOLD}▸ ${title}${C_RESET}"
+    echo "${C_DIM}$(printf "${BOX_H}%.0s" $(seq 1 ${#title}))────${C_RESET}"
+}
+
+print_info() {
+    echo "  ${C_DIM}${BOX_V}${C_RESET} $1"
+}
+
+print_success() {
+    echo "  ${ICON_CHECK} ${C_GREEN}$1${C_RESET}"
+}
+
+print_warning() {
+    echo "  ${ICON_WARN} ${C_YELLOW}$1${C_RESET}"
+}
+
+print_error() {
+    echo "  ${ICON_ERROR} ${C_RED}$1${C_RESET}"
+}
+
+# Progress bar: print_progress current total [width]
+print_progress() {
+    local current=$1
+    local total=$2
+    local width=${3:-20}
+    local percent=$((current * 100 / total))
+    local filled=$((current * width / total))
+    local empty=$((width - filled))
+
+    printf "  ${C_DIM}[${C_RESET}"
+    printf "${C_CYAN}%s${C_RESET}" "$(printf '█%.0s' $(seq 1 $filled 2>/dev/null) || true)"
+    printf "${C_DIM}%s${C_RESET}" "$(printf '░%.0s' $(seq 1 $empty 2>/dev/null) || true)"
+    printf "${C_DIM}]${C_RESET} ${C_WHITE}%3d%%${C_RESET}" "$percent"
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Dependencies
+# ─────────────────────────────────────────────────────────────────────────────
+source "${WOW_HOME}/src/security/bypass-core.sh" || {
+    print_error "Cannot load bypass-core.sh"
+    exit 1
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Main Setup Flow
+# ─────────────────────────────────────────────────────────────────────────────
+
+clear
+print_header "WoW Bypass Setup"
+
+echo "  ${ICON_LOCK} Configure a passphrase for temporarily disabling WoW protection."
+echo ""
+
+print_section "Security Model"
+print_info "Passphrase stored as salted SHA512 hash ${C_DIM}(never plaintext)${C_RESET}"
+print_info "Bypass requires interactive terminal ${C_DIM}(TTY enforced)${C_RESET}"
+print_info "AI and scripts ${C_RED}cannot${C_RESET} activate bypass mode"
+print_info "Catastrophic operations ${C_RED}always blocked${C_RESET}"
+echo ""
+
+# Check for existing configuration
+if bypass_is_configured; then
+    print_warning "Bypass is already configured"
+    echo ""
+    printf "  ${C_YELLOW}?${C_RESET} Reset the passphrase? ${C_DIM}(y/N)${C_RESET} "
+    read -r confirm < /dev/tty
+    if [[ "${confirm}" != "y" && "${confirm}" != "Y" ]]; then
+        echo ""
+        print_info "Setup cancelled"
+        exit 0
+    fi
+    echo ""
+fi
+
+# Enforce TTY requirement
+if ! bypass_check_tty; then
+    print_error "This command requires an interactive terminal"
+    print_info "Cannot run from scripts, pipes, or AI tools"
+    exit 1
+fi
+
+# Get passphrase with confirmation
+print_section "Create Passphrase"
+echo "  ${ICON_KEY} Minimum ${BYPASS_MIN_PASSPHRASE_LENGTH} characters"
+echo ""
+
+passphrase=$(bypass_read_passphrase "  ${C_CYAN}Passphrase:${C_RESET} ") || {
+    print_error "Failed to read passphrase"
+    exit 1
+}
+
+# Validate length
+if [[ ${#passphrase} -lt ${BYPASS_MIN_PASSPHRASE_LENGTH} ]]; then
+    echo ""
+    print_error "Passphrase must be at least ${BYPASS_MIN_PASSPHRASE_LENGTH} characters"
+    exit 1
+fi
+
+confirm_passphrase=$(bypass_read_passphrase "  ${C_CYAN}Confirm:${C_RESET}    ") || {
+    print_error "Failed to read confirmation"
+    exit 1
+}
+
+# Check match
+if [[ "${passphrase}" != "${confirm_passphrase}" ]]; then
+    echo ""
+    print_error "Passphrases do not match"
+    exit 1
+fi
+
+echo ""
+print_section "Securing"
+echo ""
+
+# Step 1: Generate and store hash
+print_progress 0 2
+printf " ${C_DIM}Generating secure hash...${C_RESET}"
+hash=$(bypass_hash_passphrase "${passphrase}") || {
+    echo ""
+    print_error "Failed to generate hash"
+    exit 1
+}
+
+bypass_store_hash "${hash}" || {
+    echo ""
+    print_error "Failed to store hash"
+    exit 1
+}
+printf "\r"
+print_progress 1 2
+printf " ${C_DIM}Generating secure hash...${C_RESET} ${ICON_CHECK}\n"
+
+# Step 2: Generate checksums for integrity verification
+print_progress 1 2
+printf " ${C_DIM}Generating integrity checksums...${C_RESET}"
+bypass_generate_checksums "${WOW_HOME}" 2>/dev/null || true
+printf "\r"
+print_progress 2 2
+printf " ${C_DIM}Generating integrity checksums...${C_RESET} ${ICON_CHECK}\n"
+
+# Clear sensitive variables
+passphrase=""
+confirm_passphrase=""
+hash=""
+
+# Success box with proper alignment
+echo ""
+print_success_box() {
+    local text="Setup Complete!"
+    local box_width=30
+    local text_len=${#text}
+    local padding_left=3
+    local padding_right=$((box_width - padding_left - text_len - 2))  # -2 for check and space
+
+    echo "${C_GREEN}${BOX_TL}$(printf "${BOX_H}%.0s" $(seq 1 $box_width))${BOX_TR}${C_RESET}"
+    printf "${C_GREEN}${BOX_V}${C_RESET}"
+    printf "%*s" $padding_left ""
+    printf "${ICON_CHECK} ${C_GREEN}${C_BOLD}%s${C_RESET}" "$text"
+    printf "%*s" $padding_right ""
+    echo "${C_GREEN}${BOX_V}${C_RESET}"
+    echo "${C_GREEN}${BOX_BL}$(printf "${BOX_H}%.0s" $(seq 1 $box_width))${BOX_BR}${C_RESET}"
+}
+print_success_box
+
+echo ""
+print_section "Commands"
+echo "  ${C_CYAN}wow bypass${C_RESET}   Temporarily disable protection"
+echo "  ${C_CYAN}wow protect${C_RESET}  Re-enable protection"
+echo "  ${C_CYAN}wow status${C_RESET}   Check current state"
+echo ""

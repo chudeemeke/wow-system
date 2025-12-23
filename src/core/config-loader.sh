@@ -404,8 +404,8 @@ config_validate_types() {
 
 # Load default configuration
 config_load_defaults() {
-    # Set sensible defaults
-    config_set "version" "4.1.0"
+    # Set sensible defaults (version from SSOT: VERSION file via WOW_VERSION)
+    config_set "version" "${WOW_VERSION:-6.1.0}"
     config_set "enforcement.enabled" "true"
     config_set "enforcement.strict_mode" "false"
     config_set "enforcement.block_on_violation" "false"

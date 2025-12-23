@@ -183,6 +183,11 @@ echo -e "   ${C_GREEN}✓${C_RESET} Created: ${WOW_INSTALL_DIR}"
 mkdir -p "${HOME}/.wow-data"
 echo -e "   ${C_GREEN}✓${C_RESET} Created: ${HOME}/.wow-data"
 
+# v6.1: Create bypass data directory
+mkdir -p "${HOME}/.wow-data/bypass"
+chmod 700 "${HOME}/.wow-data/bypass"
+echo -e "   ${C_GREEN}✓${C_RESET} Created: ${HOME}/.wow-data/bypass (restricted)"
+
 echo ""
 
 # ============================================================================
@@ -203,10 +208,23 @@ echo -e "   ${C_GREEN}✓${C_RESET} Deployed: config/"
 cp -r "${SCRIPT_DIR}/tests" "${WOW_INSTALL_DIR}/"
 echo -e "   ${C_GREEN}✓${C_RESET} Deployed: tests/"
 
+# v6.1: Copy bin directory (bypass commands)
+if [[ -d "${SCRIPT_DIR}/bin" ]]; then
+    cp -r "${SCRIPT_DIR}/bin" "${WOW_INSTALL_DIR}/"
+    chmod +x "${WOW_INSTALL_DIR}"/bin/*
+    echo -e "   ${C_GREEN}✓${C_RESET} Deployed: bin/ (bypass commands)"
+fi
+
 # Copy hooks to Claude hooks directory
 cp "${SCRIPT_DIR}/hooks/user-prompt-submit.sh" "${CLAUDE_DIR}/hooks/"
 chmod +x "${CLAUDE_DIR}/hooks/user-prompt-submit.sh"
 echo -e "   ${C_GREEN}✓${C_RESET} Deployed: hooks/user-prompt-submit.sh"
+
+# Copy VERSION file (Single Source of Truth)
+if [[ -f "${SCRIPT_DIR}/VERSION" ]]; then
+    cp "${SCRIPT_DIR}/VERSION" "${WOW_INSTALL_DIR}/"
+    echo -e "   ${C_GREEN}✓${C_RESET} Deployed: VERSION (SSOT)"
+fi
 
 # Copy documentation
 for doc in README.md CHANGELOG.md CLAUDE.md; do
@@ -310,6 +328,7 @@ echo -e "   ${C_CYAN}ℹ${C_RESET} Add these to your shell config (${SHELL_CONFI
 echo ""
 echo -e "${C_CYAN}export WOW_HOME=\"${WOW_INSTALL_DIR}\"${C_RESET}"
 echo -e "${C_CYAN}export WOW_DATA_DIR=\"${HOME}/.wow-data\"${C_RESET}"
+echo -e "${C_CYAN}export PATH=\"\${WOW_HOME}/bin:\${PATH}\"${C_RESET}"
 echo ""
 
 # Optionally add to shell config
@@ -327,6 +346,7 @@ if [[ -n "${SHELL_CONFIG}" ]]; then
 # WoW System v${WOW_VERSION}
 export WOW_HOME="${WOW_INSTALL_DIR}"
 export WOW_DATA_DIR="${HOME}/.wow-data"
+export PATH="\${WOW_HOME}/bin:\${PATH}"
 ENVEOF
             echo -e "   ${C_GREEN}✓${C_RESET} Added to ${SHELL_CONFIG}"
         fi
@@ -443,6 +463,25 @@ fi
 
 echo ""
 
+# v6.1: Test Bypass System
+BYPASS_FILES=($(find "${WOW_INSTALL_DIR}/src/security" -name "bypass-*.sh" -type f 2>/dev/null | sort))
+BYPASS_COUNT=${#BYPASS_FILES[@]}
+
+if [[ ${BYPASS_COUNT} -gt 0 ]]; then
+    echo -e "${C_BOLD}14. Testing Bypass System (${BYPASS_COUNT} modules)...${C_RESET}"
+
+    for module in "${BYPASS_FILES[@]}"; do
+        module_name=$(basename "${module}" .sh)
+        if source "${module}" 2>/dev/null; then
+            echo -e "   ${C_GREEN}✓${C_RESET} ${module_name}"
+        else
+            echo -e "   ${C_YELLOW}⚠${C_RESET} ${module_name} (optional)"
+        fi
+    done
+
+    echo ""
+fi
+
 # ============================================================================
 # Installation Complete
 # ============================================================================
@@ -486,6 +525,16 @@ echo ""
 echo -e "${C_BOLD}4. Verify Installation${C_RESET}"
 echo -e "   Run a simple command to test: ${C_CYAN}echo test${C_RESET}"
 echo -e "   The WoW System should intercept and validate it"
+echo ""
+echo -e "${C_BOLD}5. (Optional) Configure Bypass System${C_RESET}"
+echo -e "   If you need to temporarily disable WoW protection:"
+echo -e "   ${C_CYAN}wow setup${C_RESET}"
+echo ""
+echo -e "   Unified CLI (use ${C_CYAN}wow help${C_RESET} for details):"
+echo -e "   • ${C_CYAN}wow status${C_RESET}   Check current protection status"
+echo -e "   • ${C_CYAN}wow bypass${C_RESET}   Temporarily disable protection"
+echo -e "   • ${C_CYAN}wow protect${C_RESET}  Re-enable protection"
+echo -e "   • ${C_CYAN}wow setup${C_RESET}    Configure bypass passphrase"
 echo ""
 
 if [[ -n "${BACKUP_DIR}" ]]; then

@@ -19,6 +19,22 @@ _HANDLER_ROUTER_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${_HANDLER_ROUTER_DIR}/../core/utils.sh"
 source "${_HANDLER_ROUTER_DIR}/../core/tool-registry.sh" 2>/dev/null || true
 
+# v6.1: Bypass system integration
+source "${_HANDLER_ROUTER_DIR}/../security/bypass-core.sh" 2>/dev/null || true
+source "${_HANDLER_ROUTER_DIR}/../security/bypass-always-block.sh" 2>/dev/null || true
+
+# v6.1.1: Centralized security policies (SSOT)
+source "${_HANDLER_ROUTER_DIR}/../security/security-policies.sh" 2>/dev/null || true
+
+# v7.0: Heuristic evasion detector
+source "${_HANDLER_ROUTER_DIR}/../security/heuristics/detector.sh" 2>/dev/null || true
+
+# v7.0: Content correlator (split attack detection)
+source "${_HANDLER_ROUTER_DIR}/../security/correlator/correlator.sh" 2>/dev/null || true
+
+# v7.0: SuperAdmin authentication (biometric unlock)
+source "${_HANDLER_ROUTER_DIR}/../security/superadmin/superadmin-core.sh" 2>/dev/null || true
+
 set -uo pipefail
 
 # ============================================================================
@@ -76,6 +92,164 @@ handler_route() {
         wow_warn "Could not determine tool type from input"
         echo "${tool_input}"
         return 0
+    fi
+
+    # ========================================================================
+    # v6.1.1: ALWAYS-BLOCK CHECK (runs in ALL modes, bypass or normal)
+    # CRITICAL: These patterns are NEVER allowed, regardless of bypass status
+    # ========================================================================
+    local operation=""
+    if wow_has_jq; then
+        # Get command for Bash, file_path for Write/Edit/Read, pattern for Glob/Grep
+        operation=$(echo "${tool_input}" | jq -r '
+            .command // .file_path // .path // .pattern // .url // ""
+        ' 2>/dev/null)
+    else
+        # Fallback: extract common fields
+        operation=$(echo "${tool_input}" | grep -oE '"(command|file_path|path|pattern|url)"\s*:\s*"[^"]*"' | head -1 | cut -d'"' -f4)
+    fi
+
+    # Check CRITICAL security policies FIRST (before bypass check)
+    # These patterns are NEVER allowed, even with bypass active
+    # Uses centralized security-policies.sh (SSOT) with fallback to bypass-always-block.sh
+    if [[ -n "${operation}" ]]; then
+        local is_critical=false
+        local reason="Unknown"
+
+        # Primary: Use centralized security policies (v6.1.1)
+        if type policy_check_critical &>/dev/null; then
+            if policy_check_critical "${operation}"; then
+                is_critical=true
+                if type policy_get_reason &>/dev/null; then
+                    reason=$(policy_get_reason "${operation}")
+                fi
+            fi
+        # Fallback: Use legacy bypass-always-block.sh
+        elif type bypass_check_always_block &>/dev/null; then
+            if bypass_check_always_block "${operation}"; then
+                is_critical=true
+                if type bypass_get_block_reason &>/dev/null; then
+                    reason=$(bypass_get_block_reason "${operation}")
+                fi
+            fi
+        fi
+
+        if [[ "${is_critical}" == "true" ]]; then
+            wow_error "CRITICAL: ${reason} (cannot be bypassed)"
+            echo "${tool_input}"
+            return 3  # CRITICAL-BLOCK (cannot be bypassed)
+        fi
+
+        # ====================================================================
+        # v7.0: SUPERADMIN CHECK (can be unlocked with SuperAdmin, not bypass)
+        # ====================================================================
+        local is_superadmin=false
+        if type policy_check_superadmin &>/dev/null; then
+            if policy_check_superadmin "${operation}"; then
+                is_superadmin=true
+                if type policy_get_reason &>/dev/null; then
+                    reason=$(policy_get_reason "${operation}")
+                fi
+            fi
+        fi
+
+        if [[ "${is_superadmin}" == "true" ]]; then
+            # Check if SuperAdmin mode is active
+            local superadmin_active=false
+            if type superadmin_is_active &>/dev/null && superadmin_is_active; then
+                superadmin_active=true
+            fi
+
+            if [[ "${superadmin_active}" == "true" ]]; then
+                wow_debug "SuperAdmin active: allowing ${operation}"
+                # Continue to normal processing (don't return)
+            else
+                wow_error "SUPERADMIN REQUIRED: ${reason}"
+                echo "${tool_input}"
+                return 4  # SUPERADMIN-REQUIRED
+            fi
+        fi
+    fi
+
+    # ========================================================================
+    # v6.1: Bypass mode check (skip normal handler validation if bypass active)
+    # ========================================================================
+    if type bypass_is_active &>/dev/null && bypass_is_active; then
+        # Bypass active and not always-blocked: skip handler validation
+        wow_debug "Bypass active: skipping ${tool_type} handler validation"
+
+        # Update activity timestamp (Safety Dead-Bolt: prevents inactivity timeout)
+        if type bypass_update_activity &>/dev/null; then
+            bypass_update_activity
+        fi
+
+        echo "${tool_input}"
+        return 0
+    fi
+
+    # ========================================================================
+    # v7.0: Heuristic Evasion Detection
+    # Detects attempts to bypass security through encoding, obfuscation, etc.
+    # ========================================================================
+    if [[ -n "${operation}" ]] && type heuristic_check &>/dev/null; then
+        # Initialize heuristics if needed
+        if type heuristic_init &>/dev/null; then
+            heuristic_init
+        fi
+
+        # Check for evasion attempts
+        if ! heuristic_check "${operation}"; then
+            local heur_confidence heur_reason
+            heur_confidence=$(heuristic_get_confidence "${operation}" 2>/dev/null || echo "0")
+            heur_reason=$(heuristic_get_reason "${operation}" 2>/dev/null || echo "Unknown evasion attempt")
+
+            if [[ ${heur_confidence} -ge 70 ]]; then
+                # High confidence: BLOCK
+                wow_error "HEURISTIC BLOCK: ${heur_reason} (confidence: ${heur_confidence}%)"
+                echo "${tool_input}"
+                return 2  # BLOCK (bypassable)
+            elif [[ ${heur_confidence} -ge 40 ]]; then
+                # Medium confidence: WARN but allow
+                wow_warn "HEURISTIC WARNING: ${heur_reason} (confidence: ${heur_confidence}%)"
+                # Continue to handler
+            fi
+        fi
+    fi
+
+    # ========================================================================
+    # v7.0: Content Correlation (Split Attack Detection)
+    # Detects multi-step attacks like write-then-execute
+    # ========================================================================
+    if [[ -n "${operation}" ]] && type correlator_check &>/dev/null; then
+        # Initialize correlator if needed (once per session)
+        if type correlator_init &>/dev/null && [[ -z "${_WOW_CORRELATOR_INITIALIZED:-}" ]]; then
+            correlator_init
+            _WOW_CORRELATOR_INITIALIZED=1
+        fi
+
+        # Check for dangerous correlation patterns
+        if ! correlator_check "${tool_type}" "${operation}"; then
+            local corr_reason corr_risk
+            corr_reason=$(correlator_get_reason 2>/dev/null || echo "Split attack detected")
+            corr_risk=$(correlator_get_risk_score 2>/dev/null || echo "0")
+
+            if [[ ${corr_risk} -ge 70 ]]; then
+                # High risk: BLOCK
+                wow_error "CORRELATION BLOCK: ${corr_reason}"
+                echo "${tool_input}"
+                return 2  # BLOCK (bypassable)
+            elif [[ ${corr_risk} -ge 40 ]]; then
+                # Medium risk: WARN but allow
+                wow_warn "CORRELATION WARNING: ${corr_reason}"
+            fi
+        fi
+
+        # Track this operation for future correlation
+        local content=""
+        if wow_has_jq; then
+            content=$(echo "${tool_input}" | jq -r '.content // .new_string // ""' 2>/dev/null | head -c 200)
+        fi
+        correlator_track "${tool_type}" "${operation}" "${content}"
     fi
 
     # Check if handler exists

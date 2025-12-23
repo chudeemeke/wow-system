@@ -1,0 +1,143 @@
+#!/bin/bash
+# WoW System - Unified CLI
+# Author: Chude <chude@emeke.org>
+#
+# Usage: wow <command> [options]
+
+set -uo pipefail
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Design System
+# ─────────────────────────────────────────────────────────────────────────────
+C_RESET=$'\033[0m'
+C_BOLD=$'\033[1m'
+C_DIM=$'\033[2m'
+C_WHITE=$'\033[97m'
+C_GREEN=$'\033[32m'
+C_YELLOW=$'\033[33m'
+C_RED=$'\033[31m'
+C_CYAN=$'\033[36m'
+
+# Box drawing (rounded corners)
+BOX_H="─"
+BOX_TL="╭"
+BOX_TR="╮"
+BOX_BL="╰"
+BOX_BR="╯"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Auto-discover
+# ─────────────────────────────────────────────────────────────────────────────
+_discover_wow_home() {
+    # First, try to resolve via the script's actual location (works for symlinks)
+    local script_dir
+    script_dir="$(dirname "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")")"
+    if [[ -f "${script_dir}/VERSION" ]]; then
+        echo "${script_dir}"
+        return 0
+    fi
+
+    # Fallback candidates
+    local candidates=(
+        "${WOW_HOME:-}"
+        "${HOME}/.claude/wow-system"
+        "${HOME}/Projects/wow-system"
+    )
+    for candidate in "${candidates[@]}"; do
+        if [[ -n "${candidate}" && -f "${candidate}/VERSION" ]]; then
+            echo "${candidate}"
+            return 0
+        fi
+    done
+    return 1
+}
+
+WOW_HOME="$(_discover_wow_home)" || {
+    echo "${C_RED}Error${C_RESET}: Cannot find WoW System" >&2
+    exit 1
+}
+
+# Read version from single source of truth
+VERSION="$(tr -d '[:space:]' < "${WOW_HOME}/VERSION" 2>/dev/null || echo "unknown")"
+
+BIN_DIR="${WOW_HOME}/bin"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Help
+# ─────────────────────────────────────────────────────────────────────────────
+print_header() {
+    echo ""
+    echo "  ${C_BOLD}${C_WHITE}WoW${C_RESET} ${C_DIM}v${VERSION}${C_RESET}"
+    echo "  ${C_DIM}Ways of Working Enforcement${C_RESET}"
+    echo ""
+}
+
+print_usage() {
+    print_header
+    echo "  ${C_DIM}────────────────────────────────────────${C_RESET}"
+    echo ""
+    echo "  ${C_WHITE}Usage${C_RESET}"
+    echo "    ${C_CYAN}wow${C_RESET} ${C_DIM}<command>${C_RESET}"
+    echo ""
+    echo "  ${C_WHITE}Commands${C_RESET}"
+    echo "    ${C_CYAN}status${C_RESET}      Show current protection status"
+    echo "    ${C_CYAN}bypass${C_RESET}      Temporarily disable protection"
+    echo "    ${C_CYAN}protect${C_RESET}     Re-enable protection"
+    echo "    ${C_CYAN}superadmin${C_RESET}  High-privilege mode (fingerprint auth)"
+    echo "    ${C_CYAN}setup${C_RESET}       Configure bypass passphrase"
+    echo "    ${C_CYAN}help${C_RESET}        Show this help message"
+    echo "    ${C_CYAN}version${C_RESET}     Show version information"
+    echo ""
+    echo "  ${C_WHITE}Examples${C_RESET}"
+    echo "    ${C_DIM}\$${C_RESET} wow status"
+    echo "    ${C_DIM}\$${C_RESET} wow bypass"
+    echo "    ${C_DIM}\$${C_RESET} wow protect"
+    echo ""
+}
+
+print_version() {
+    print_header
+    echo "  ${C_DIM}────────────────────────────────────────${C_RESET}"
+    echo ""
+    echo "  ${C_WHITE}Version${C_RESET}   ${VERSION}"
+    echo "  ${C_WHITE}Home${C_RESET}      ${WOW_HOME}"
+    echo ""
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Command Router
+# ─────────────────────────────────────────────────────────────────────────────
+command="${1:-help}"
+
+case "${command}" in
+    status|s)
+        exec "${BIN_DIR}/wow-bypass-status"
+        ;;
+    bypass|b)
+        exec "${BIN_DIR}/wow-bypass"
+        ;;
+    protect|p)
+        exec "${BIN_DIR}/wow-protect"
+        ;;
+    superadmin|sa)
+        shift 2>/dev/null || true
+        exec "${BIN_DIR}/wow-superadmin" "$@"
+        ;;
+    setup)
+        exec "${BIN_DIR}/wow-bypass-setup"
+        ;;
+    version|v|-v|--version)
+        print_version
+        ;;
+    help|h|-h|--help)
+        print_usage
+        ;;
+    *)
+        echo ""
+        echo "  ${C_RED}●${C_RESET} Unknown command: ${C_WHITE}${command}${C_RESET}"
+        echo ""
+        echo "  ${C_DIM}Run${C_RESET} ${C_CYAN}wow help${C_RESET} ${C_DIM}for available commands.${C_RESET}"
+        echo ""
+        exit 1
+        ;;
+esac

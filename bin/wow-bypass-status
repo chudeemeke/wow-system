@@ -1,0 +1,164 @@
+#!/bin/bash
+# WoW System - Status Display
+# Author: Chude <chude@emeke.org>
+#
+# Exit codes: 0=protected, 1=bypass active, 2=not configured
+
+set -uo pipefail
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Bootstrap: Discover WOW_HOME and VERSION first (needed for --version)
+# ─────────────────────────────────────────────────────────────────────────────
+_discover_wow_home() {
+    local candidates=(
+        "${WOW_HOME:-}"
+        "${HOME}/.claude/wow-system"
+        "${HOME}/Projects/wow-system"
+        "$(dirname "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")")"
+    )
+    for candidate in "${candidates[@]}"; do
+        if [[ -n "${candidate}" && -f "${candidate}/src/security/bypass-core.sh" ]]; then
+            echo "${candidate}"
+            return 0
+        fi
+    done
+    return 1
+}
+
+WOW_HOME="$(_discover_wow_home)" || {
+    echo "Error: Cannot find WoW System" >&2
+    exit 2
+}
+
+VERSION="$(tr -d '[:space:]' < "${WOW_HOME}/VERSION" 2>/dev/null || echo "unknown")"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Global Options (handle before anything else)
+# ─────────────────────────────────────────────────────────────────────────────
+case "${1:-}" in
+    -h|--help|help)
+        cat << EOF
+
+  WoW
+  Status
+
+  ────────────────────────────────────────
+
+  Usage
+    wow status
+
+  Description
+    Display current WoW protection status.
+
+  States
+    ● Protected       Security active
+    ● Bypass Active   Protection disabled
+    ○ Not Configured  Setup required
+
+  Options
+    -h, --help      Show this help
+    -v, --version   Show version
+
+  Exit Codes
+    0    Protected
+    1    Bypass active
+    2    Not configured
+
+  See Also
+    wow bypass     Temporarily disable protection
+    wow protect    Re-enable protection
+    wow setup      Configure passphrase
+
+EOF
+        exit 0
+        ;;
+    -v|--version|version)
+        echo "wow-bypass-status ${VERSION}"
+        exit 0
+        ;;
+esac
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Design System
+# ─────────────────────────────────────────────────────────────────────────────
+C_RESET=$'\033[0m'
+C_BOLD=$'\033[1m'
+C_DIM=$'\033[2m'
+C_WHITE=$'\033[97m'
+C_GREEN=$'\033[32m'
+C_YELLOW=$'\033[33m'
+C_RED=$'\033[31m'
+C_CYAN=$'\033[36m'
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Dependencies
+# ─────────────────────────────────────────────────────────────────────────────
+source "${WOW_HOME}/src/security/bypass-core.sh" || exit 2
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Interface
+# ─────────────────────────────────────────────────────────────────────────────
+
+echo ""
+echo "  ${C_BOLD}${C_WHITE}WoW${C_RESET}"
+echo "  ${C_DIM}Status${C_RESET}"
+echo ""
+echo "  ${C_DIM}────────────────────────────────────────${C_RESET}"
+echo ""
+
+status=$(bypass_get_status 2>/dev/null)
+
+case "${status}" in
+    "NOT_CONFIGURED")
+        echo "  ${C_DIM}○${C_RESET} ${C_DIM}Not Configured${C_RESET}"
+        echo ""
+        echo "  ${C_DIM}Protection is active by default.${C_RESET}"
+        echo "  ${C_DIM}Run${C_RESET} ${C_CYAN}wow-bypass-setup${C_RESET} ${C_DIM}to enable bypass.${C_RESET}"
+        echo ""
+        exit 2
+        ;;
+
+    "PROTECTED")
+        echo "  ${C_GREEN}●${C_RESET} ${C_BOLD}Protected${C_RESET}"
+        echo ""
+        echo "  ${C_DIM}Security is active.${C_RESET}"
+        echo "  ${C_DIM}All operations are validated.${C_RESET}"
+
+        # Show failed attempts if any
+        if [[ -f "${BYPASS_FAILURES_FILE:-}" ]]; then
+            count=$(grep -o '"count":[0-9]*' "${BYPASS_FAILURES_FILE}" 2>/dev/null | cut -d: -f2)
+            if [[ -n "${count}" && "${count}" -gt 0 ]]; then
+                echo ""
+                echo "  ${C_DIM}${count} failed attempt(s) recorded${C_RESET}"
+            fi
+        fi
+        echo ""
+        exit 0
+        ;;
+
+    "BYPASS_ACTIVE")
+        # Get remaining time if available
+        remaining=$(bypass_get_remaining 2>/dev/null)
+
+        echo "  ${C_YELLOW}●${C_RESET} ${C_BOLD}Bypass Active${C_RESET}"
+        echo ""
+        echo "  ${C_DIM}Protection is${C_RESET} ${C_RED}disabled${C_RESET}${C_DIM}.${C_RESET}"
+        echo "  ${C_DIM}Catastrophic operations remain blocked.${C_RESET}"
+
+        if [[ -n "${remaining}" && "${remaining}" -gt 0 ]]; then
+            mins=$((remaining / 60))
+            echo ""
+            echo "  ${C_DIM}Auto-expires in ~${mins} minutes${C_RESET}"
+        fi
+        echo ""
+        echo "  ${C_DIM}Run${C_RESET} ${C_CYAN}wow-protect${C_RESET} ${C_DIM}to restore security.${C_RESET}"
+        echo ""
+        exit 1
+        ;;
+
+    *)
+        echo "  ${C_RED}●${C_RESET} ${C_DIM}Unknown State${C_RESET}"
+        echo ""
+        exit 2
+        ;;
+esac

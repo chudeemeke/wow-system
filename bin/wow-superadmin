@@ -1,0 +1,344 @@
+#!/bin/bash
+# WoW System - SuperAdmin Command
+# Manages SuperAdmin mode for high-privilege operations
+# Author: Chude <chude@emeke.org>
+
+set -uo pipefail
+
+# ============================================================================
+# Bootstrap: Find WoW System
+# ============================================================================
+
+_discover_wow_home() {
+    local candidates=(
+        "${WOW_HOME:-}"
+        "${HOME}/.claude/wow-system"
+        "$(dirname "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")")"
+    )
+    for candidate in "${candidates[@]}"; do
+        if [[ -n "${candidate}" && -f "${candidate}/VERSION" ]]; then
+            echo "${candidate}"
+            return 0
+        fi
+    done
+    return 1
+}
+
+WOW_HOME="$(_discover_wow_home)" || {
+    echo "Error: Cannot find WoW System" >&2
+    exit 1
+}
+
+# Load version from SSOT
+VERSION="$(tr -d '[:space:]' < "${WOW_HOME}/VERSION" 2>/dev/null || echo "7.0.0")"
+
+# Source dependencies
+source "${WOW_HOME}/src/core/utils.sh" 2>/dev/null || true
+source "${WOW_HOME}/src/security/superadmin/superadmin-core.sh" 2>/dev/null || {
+    echo "Error: Cannot load SuperAdmin module" >&2
+    exit 1
+}
+
+# Disable errexit for CLI (we handle errors manually)
+set +e
+
+# ============================================================================
+# Colors
+# ============================================================================
+
+if [[ -t 1 ]]; then
+    C_RESET=$'\033[0m'
+    C_BOLD=$'\033[1m'
+    C_DIM=$'\033[2m'
+    C_RED=$'\033[31m'
+    C_GREEN=$'\033[32m'
+    C_YELLOW=$'\033[33m'
+    C_CYAN=$'\033[36m'
+else
+    C_RESET="" C_BOLD="" C_DIM="" C_RED="" C_GREEN="" C_YELLOW="" C_CYAN=""
+fi
+
+# ============================================================================
+# Help
+# ============================================================================
+
+show_help() {
+    cat << EOF
+
+  ${C_BOLD}WoW SuperAdmin${C_RESET}
+  High-privilege mode for sensitive operations
+
+  ${C_DIM}────────────────────────────────────────${C_RESET}
+
+  ${C_BOLD}Usage${C_RESET}
+    wow superadmin <command>
+
+  ${C_BOLD}Commands${C_RESET}
+    unlock      Authenticate and unlock SuperAdmin mode
+    lock        Re-lock SuperAdmin mode
+    status      Show current SuperAdmin status
+    setup       Configure fallback passphrase (for systems without fingerprint)
+    help        Show this help message
+
+  ${C_BOLD}Security${C_RESET}
+    SuperAdmin requires biometric (fingerprint) authentication.
+    For systems without biometrics, a strong passphrase fallback is available.
+
+    SuperAdmin mode automatically locks after:
+    - 15 minutes maximum
+    - 5 minutes of inactivity
+
+  ${C_BOLD}Examples${C_RESET}
+    wow superadmin unlock     # Authenticate with fingerprint
+    wow superadmin status     # Check if unlocked
+    wow superadmin lock       # Re-lock immediately
+
+EOF
+}
+
+# ============================================================================
+# Commands
+# ============================================================================
+
+cmd_unlock() {
+    echo ""
+    echo "  ${C_BOLD}WoW${C_RESET}"
+    echo "  ${C_CYAN}SuperAdmin Unlock${C_RESET}"
+    echo ""
+    echo "  ${C_DIM}────────────────────────────────────────${C_RESET}"
+    echo ""
+
+    # Check if already active
+    if superadmin_is_active; then
+        local remaining
+        remaining=$(superadmin_get_remaining)
+        echo "  ${C_GREEN}●${C_RESET} Already unlocked"
+        echo ""
+        echo "  ${C_DIM}Remaining: $((remaining / 60)) minutes${C_RESET}"
+        echo ""
+        return 0
+    fi
+
+    # Check rate limiting
+    if ! superadmin_check_rate_limit; then
+        echo ""
+        return 1
+    fi
+
+    # Check TTY
+    if ! superadmin_check_tty; then
+        echo "  ${C_RED}●${C_RESET} Requires interactive terminal"
+        echo ""
+        echo "  ${C_DIM}SuperAdmin cannot be activated from scripts or AI.${C_RESET}"
+        echo ""
+        return 1
+    fi
+
+    # Show authentication method
+    if superadmin_has_biometric; then
+        echo "  ${C_DIM}Authenticating with fingerprint...${C_RESET}"
+        echo ""
+    else
+        echo "  ${C_DIM}Authenticating with passphrase...${C_RESET}"
+        echo ""
+    fi
+
+    # Attempt activation
+    if superadmin_activate; then
+        local remaining
+        remaining=$(superadmin_get_remaining)
+        echo ""
+        echo "  ${C_GREEN}●${C_RESET} SuperAdmin unlocked"
+        echo ""
+        echo "  ${C_DIM}Expires in $((remaining / 60)) minutes.${C_RESET}"
+        echo "  ${C_DIM}Run${C_RESET} ${C_CYAN}wow superadmin lock${C_RESET} ${C_DIM}to re-lock.${C_RESET}"
+        echo ""
+        return 0
+    else
+        echo ""
+        echo "  ${C_RED}●${C_RESET} Authentication failed"
+        echo ""
+        return 1
+    fi
+}
+
+cmd_lock() {
+    echo ""
+    echo "  ${C_BOLD}WoW${C_RESET}"
+    echo "  ${C_CYAN}SuperAdmin Lock${C_RESET}"
+    echo ""
+    echo "  ${C_DIM}────────────────────────────────────────${C_RESET}"
+    echo ""
+
+    if ! superadmin_is_active; then
+        echo "  ${C_DIM}●${C_RESET} Already locked"
+        echo ""
+        return 0
+    fi
+
+    superadmin_deactivate
+
+    echo "  ${C_GREEN}●${C_RESET} SuperAdmin locked"
+    echo ""
+    echo "  ${C_DIM}High-privilege operations now require re-authentication.${C_RESET}"
+    echo ""
+}
+
+cmd_status() {
+    echo ""
+    echo "  ${C_BOLD}WoW${C_RESET}"
+    echo "  ${C_CYAN}SuperAdmin Status${C_RESET}"
+    echo ""
+    echo "  ${C_DIM}────────────────────────────────────────${C_RESET}"
+    echo ""
+
+    local status
+    status=$(superadmin_get_status)
+
+    case "${status}" in
+        UNLOCKED)
+            local remaining
+            remaining=$(superadmin_get_remaining)
+            echo "  ${C_GREEN}●${C_RESET} ${C_BOLD}Unlocked${C_RESET}"
+            echo ""
+            echo "  ${C_DIM}Remaining: $((remaining / 60)) minutes${C_RESET}"
+            ;;
+        LOCKED)
+            echo "  ${C_YELLOW}●${C_RESET} ${C_BOLD}Locked${C_RESET}"
+            echo ""
+            echo "  ${C_DIM}Run${C_RESET} ${C_CYAN}wow superadmin unlock${C_RESET} ${C_DIM}to authenticate.${C_RESET}"
+            ;;
+        NOT_CONFIGURED)
+            echo "  ${C_RED}●${C_RESET} ${C_BOLD}Not Configured${C_RESET}"
+            echo ""
+            if superadmin_has_biometric; then
+                echo "  ${C_DIM}Fingerprint reader detected.${C_RESET}"
+                echo "  ${C_DIM}Run${C_RESET} ${C_CYAN}wow superadmin unlock${C_RESET} ${C_DIM}to authenticate.${C_RESET}"
+            else
+                echo "  ${C_DIM}No fingerprint reader detected.${C_RESET}"
+                echo "  ${C_DIM}Run${C_RESET} ${C_CYAN}wow superadmin setup${C_RESET} ${C_DIM}to configure passphrase.${C_RESET}"
+            fi
+            ;;
+    esac
+
+    echo ""
+
+    # Show biometric status
+    echo "  ${C_DIM}Biometric:${C_RESET} $(superadmin_has_biometric && echo "Available" || echo "Not available")"
+    echo "  ${C_DIM}Fallback:${C_RESET} $([[ -f "${SUPERADMIN_HASH_FILE}" ]] && echo "Configured" || echo "Not configured")"
+    echo ""
+}
+
+cmd_setup() {
+    echo ""
+    echo "  ${C_BOLD}WoW${C_RESET}"
+    echo "  ${C_CYAN}SuperAdmin Setup${C_RESET}"
+    echo ""
+    echo "  ${C_DIM}────────────────────────────────────────${C_RESET}"
+    echo ""
+
+    # Check TTY
+    if ! superadmin_check_tty; then
+        echo "  ${C_RED}●${C_RESET} Requires interactive terminal"
+        echo ""
+        return 1
+    fi
+
+    # Check if biometric available
+    if superadmin_has_biometric; then
+        echo "  ${C_GREEN}●${C_RESET} Fingerprint reader detected"
+        echo ""
+        echo "  ${C_DIM}Primary authentication will use fingerprint.${C_RESET}"
+        echo "  ${C_DIM}Setting up passphrase as fallback...${C_RESET}"
+        echo ""
+    else
+        echo "  ${C_YELLOW}●${C_RESET} No fingerprint reader detected"
+        echo ""
+        echo "  ${C_DIM}Setting up passphrase authentication...${C_RESET}"
+        echo ""
+    fi
+
+    # Read passphrase
+    echo "  ${C_DIM}Requirements:${C_RESET}"
+    echo "    - Minimum ${SUPERADMIN_MIN_PASSPHRASE_LENGTH} characters"
+    echo "    - Should be different from bypass passphrase"
+    echo ""
+
+    local passphrase1 passphrase2
+
+    passphrase1=$(superadmin_read_passphrase "  Enter new passphrase: ")
+    echo ""
+
+    # Check length
+    if [[ ${#passphrase1} -lt ${SUPERADMIN_MIN_PASSPHRASE_LENGTH} ]]; then
+        echo "  ${C_RED}●${C_RESET} Passphrase too short (minimum ${SUPERADMIN_MIN_PASSPHRASE_LENGTH} characters)"
+        echo ""
+        return 1
+    fi
+
+    passphrase2=$(superadmin_read_passphrase "  Confirm passphrase: ")
+    echo ""
+
+    # Check match
+    if [[ "${passphrase1}" != "${passphrase2}" ]]; then
+        echo "  ${C_RED}●${C_RESET} Passphrases do not match"
+        echo ""
+        return 1
+    fi
+
+    # Hash and store
+    local hash
+    hash=$(superadmin_hash_passphrase "${passphrase1}")
+    if superadmin_store_hash "${hash}"; then
+        echo ""
+        echo "  ${C_GREEN}●${C_RESET} SuperAdmin passphrase configured"
+        echo ""
+        echo "  ${C_DIM}You can now use${C_RESET} ${C_CYAN}wow superadmin unlock${C_RESET}"
+        echo ""
+    else
+        echo ""
+        echo "  ${C_RED}●${C_RESET} Failed to store passphrase"
+        echo ""
+        return 1
+    fi
+}
+
+# ============================================================================
+# Main
+# ============================================================================
+
+# Handle global options
+case "${1:-}" in
+    -h|--help|help)
+        show_help
+        exit 0
+        ;;
+    -v|--version|version)
+        echo "wow-superadmin ${VERSION}"
+        exit 0
+        ;;
+esac
+
+# Route commands
+command="${1:-status}"
+shift 2>/dev/null || true
+
+case "${command}" in
+    unlock|activate)
+        cmd_unlock
+        ;;
+    lock|deactivate)
+        cmd_lock
+        ;;
+    status)
+        cmd_status
+        ;;
+    setup|configure)
+        cmd_setup
+        ;;
+    *)
+        echo "Unknown command: ${command}" >&2
+        echo "Run 'wow superadmin help' for usage." >&2
+        exit 1
+        ;;
+esac

@@ -1,0 +1,160 @@
+#!/bin/bash
+# WoW Immutable Protection Manager
+# Protects critical WoW files from AI bypass using chattr +i
+# Author: Chude <chude@emeke.org>
+
+set -uo pipefail
+
+# Critical files that should be protected
+CRITICAL_FILES=(
+    "${HOME}/.claude/hooks/user-prompt-submit.sh"
+)
+
+# Colors
+RED=$'\033[0;31m'
+GREEN=$'\033[0;32m'
+YELLOW=$'\033[0;33m'
+CYAN=$'\033[0;36m'
+NC=$'\033[0m'
+
+show_help() {
+    cat << 'EOF'
+  WoW Immutable Protection
+  Protect critical files from AI bypass
+
+  Usage
+    wow-immutable <command>
+
+  Commands
+    lock        Protect files (requires sudo)
+    unlock      Unprotect files for updates (requires sudo)
+    status      Show protection status
+
+  Examples
+    $ wow-immutable status
+    $ sudo wow-immutable lock
+    $ sudo wow-immutable unlock
+
+  Why This Matters
+    Without immutable protection, AI could disable WoW by simply
+    moving or deleting the hook file. The immutable flag prevents
+    this at the OS level.
+
+EOF
+}
+
+check_chattr() {
+    if ! command -v chattr &>/dev/null; then
+        echo "${RED}Error: chattr not found${NC}"
+        echo "Install with: sudo apt install e2fsprogs"
+        exit 1
+    fi
+}
+
+check_sudo() {
+    if [[ $EUID -ne 0 ]]; then
+        echo "${RED}Error: This command requires sudo${NC}"
+        echo "Run: sudo wow-immutable $1"
+        exit 1
+    fi
+}
+
+do_lock() {
+    check_chattr
+    check_sudo "lock"
+
+    echo "${CYAN}Protecting WoW critical files...${NC}"
+    echo ""
+
+    local protected=0
+    local failed=0
+
+    for file in "${CRITICAL_FILES[@]}"; do
+        if [[ -f "$file" ]]; then
+            if chattr +i "$file" 2>/dev/null; then
+                echo "  ${GREEN}[LOCKED]${NC} $file"
+                ((protected++))
+            else
+                echo "  ${RED}[FAILED]${NC} $file"
+                ((failed++))
+            fi
+        else
+            echo "  ${YELLOW}[MISSING]${NC} $file"
+        fi
+    done
+
+    echo ""
+    if [[ $failed -eq 0 ]]; then
+        echo "${GREEN}Protection enabled. Files are now immutable.${NC}"
+    else
+        echo "${YELLOW}Some files could not be protected.${NC}"
+        echo "This may happen on Windows filesystems (NTFS)."
+    fi
+}
+
+do_unlock() {
+    check_chattr
+    check_sudo "unlock"
+
+    echo "${CYAN}Unprotecting WoW critical files...${NC}"
+    echo ""
+
+    for file in "${CRITICAL_FILES[@]}"; do
+        if [[ -f "$file" ]]; then
+            if chattr -i "$file" 2>/dev/null; then
+                echo "  ${YELLOW}[UNLOCKED]${NC} $file"
+            else
+                echo "  ${RED}[FAILED]${NC} $file"
+            fi
+        else
+            echo "  ${YELLOW}[MISSING]${NC} $file"
+        fi
+    done
+
+    echo ""
+    echo "${YELLOW}Files can now be modified. Re-lock after updates.${NC}"
+}
+
+do_status() {
+    check_chattr
+
+    echo "${CYAN}WoW Protection Status${NC}"
+    echo ""
+
+    for file in "${CRITICAL_FILES[@]}"; do
+        if [[ -f "$file" ]]; then
+            local attrs
+            attrs=$(lsattr "$file" 2>/dev/null | cut -c5)
+            if [[ "$attrs" == "i" ]]; then
+                echo "  ${GREEN}[PROTECTED]${NC}   $file"
+            else
+                echo "  ${RED}[UNPROTECTED]${NC} $file"
+            fi
+        else
+            echo "  ${YELLOW}[MISSING]${NC}     $file"
+        fi
+    done
+
+    echo ""
+}
+
+# Main
+case "${1:-}" in
+    -h|--help|help)
+        show_help
+        ;;
+    lock|protect)
+        do_lock
+        ;;
+    unlock|unprotect)
+        do_unlock
+        ;;
+    status|"")
+        do_status
+        ;;
+    *)
+        echo "Unknown command: $1"
+        echo "Run 'wow-immutable help' for usage."
+        exit 1
+        ;;
+esac

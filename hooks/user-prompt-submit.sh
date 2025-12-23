@@ -53,6 +53,10 @@ source "${WOW_SYSTEM_DIR}/src/core/orchestrator.sh" 2>/dev/null || {
 source "${WOW_SYSTEM_DIR}/src/ui/display.sh" 2>/dev/null || true
 source "${WOW_SYSTEM_DIR}/src/ui/score-display.sh" 2>/dev/null || true
 
+# Source messaging framework (SOLID-compliant, unified messaging)
+source "${WOW_SYSTEM_DIR}/src/ui/messaging/messages.sh" 2>/dev/null || true
+source "${WOW_SYSTEM_DIR}/src/ui/messaging/startup-checks.sh" 2>/dev/null || true
+
 # ============================================================================
 # Main Hook Logic
 # ============================================================================
@@ -82,6 +86,13 @@ main() {
         # Display full session banner to stderr (for debugging/terminals)
         if type display_session_banner &>/dev/null; then
             display_session_banner >&2
+        fi
+
+        # Run startup checks (security warnings, bypass status, etc.)
+        # Uses the SOLID-compliant messaging framework
+        if type startup_checks_init &>/dev/null; then
+            startup_checks_init
+            startup_checks_run_all
         fi
     fi
 
@@ -126,8 +137,23 @@ main() {
         output=$(handler_route "${handler_input}" 2>&1) && local handler_result=$? || local handler_result=$?
 
         # Check handler result and return hookSpecificOutput
-        if [[ ${handler_result} -eq 2 ]]; then
-            # Handler blocked the operation
+        # Exit codes: 0=allow, 2=block (bypassable), 3=always-block (not bypassable), 4=superadmin-required
+        if [[ ${handler_result} -eq 3 ]]; then
+            # ALWAYS-BLOCK: Cannot be bypassed (SSRF, auth files, destructive ops)
+            wow_error "WoW System: CRITICAL operation blocked (cannot be bypassed)" >&2
+
+            local reason="WoW System blocked this operation. This is a CRITICAL security violation that cannot be bypassed. Operations like SSRF attacks, reading auth files, and destructive commands are always blocked."
+            echo "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"${reason}\"}}" | jq -c
+            exit 1  # Non-zero exit to signal block to Claude Code
+        elif [[ ${handler_result} -eq 4 ]]; then
+            # SUPERADMIN-REQUIRED: Can be unlocked with SuperAdmin authentication
+            wow_error "WoW System: SuperAdmin authentication required" >&2
+
+            local reason="WoW System blocked this operation. This operation requires SuperAdmin authentication. Ask the user to run 'wow superadmin unlock' in their terminal and authenticate with their fingerprint to temporarily allow this operation."
+            echo "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"${reason}\"}}" | jq -c
+            exit 1  # Non-zero exit to signal block to Claude Code
+        elif [[ ${handler_result} -eq 2 ]]; then
+            # Regular block: Can be bypassed by user
             wow_error "WoW System: Operation blocked by handler" >&2
 
             # Extract path/command from handler_input for display
@@ -144,10 +170,10 @@ main() {
                 display_alert "error" "Operation Blocked" "WoW System prevented a dangerous operation" >&2
             fi
 
-            # Return deny decision with reason
-            local reason="WoW System blocked this operation as potentially dangerous"
+            # Return deny decision with reason and guidance for bypass
+            local reason="WoW System blocked this operation. If this is legitimate, ask the user to run 'wow bypass' in their terminal to temporarily disable protection."
             echo "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"${reason}\"}}" | jq -c
-            exit 0
+            exit 1  # Non-zero exit to signal block to Claude Code
         elif [[ ${handler_result} -eq 0 ]]; then
             # Handler allowed
             echo '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"allow","permissionDecisionReason":"WoW System validated operation"}}' | jq -c

@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**WoW System v6.0.0** - Ways of Working Enforcement for Claude Code
+**WoW System v6.1.1** - Ways of Working Enforcement for Claude Code
 
 A production-grade defensive security framework that intercepts Claude Code tool calls to prevent dangerous operations, enforce best practices, and maintain behavioral scoring.
 
@@ -48,6 +48,58 @@ v6.0.0 introduces a comprehensive domain validation architecture that replaces h
 - 48 domain validation tests (100% passing)
 - 72 handler tests (100% passing)
 - Zero regressions in existing functionality
+
+## What's New in v6.1.1
+
+### Centralized Security Policies (SSOT)
+
+v6.1.1 introduces a centralized security policy system following SOLID principles:
+
+**src/security/security-policies.sh** - Single Source of Truth for ALL security patterns:
+
+- TIER_CRITICAL: Never allowed, even with bypass (exit 3)
+- TIER_HIGH: Blocked by default, bypassable (exit 2)
+- TIER_MEDIUM: Warned, tracked, not blocked (exit 1)
+
+**Critical Patterns (Never Bypassable)**:
+- SSRF/Cloud Metadata endpoints
+- System destruction commands
+- Fork bombs
+- System authentication files
+- WoW self-protection files
+
+**Defense-in-Depth Architecture**:
+1. handler-router.sh checks CRITICAL patterns FIRST (before bypass check)
+2. Individual handlers provide backup pattern matching
+3. Exit codes distinguish bypassable vs non-bypassable blocks
+
+### Enhanced Exit Code System
+
+**Handler Return Codes**:
+- `0` = ALLOW (operation proceeds)
+- `1` = WARN (non-blocking, logs warning)
+- `2` = BLOCK (bypassable - user can run `wow bypass`)
+- `3` = CRITICAL-BLOCK (cannot be bypassed)
+
+**User-Facing Messages**:
+- Bypassable blocks: "If this is legitimate, ask the user to run 'wow bypass'"
+- Critical blocks: "This is a CRITICAL security violation that cannot be bypassed"
+
+### Bypass System with Safety Dead-Bolt (v6.1.0)
+
+The bypass system allows temporarily disabling protection for legitimate operations:
+
+**Safety Features**:
+- TTY Enforcement: Can only be activated from interactive terminal
+- Passphrase Required: Must know passphrase to activate
+- Auto-Relock: Maximum 4 hours, or 30 minutes of inactivity
+- Activity Tracking: Updates on each allowed operation
+
+**Commands**:
+- `wow bypass` - Activate bypass mode (requires passphrase)
+- `wow protect` - Re-enable protection
+- `wow bypass-status` - Check current status
+- `wow setup` - Initial configuration (set passphrase)
 
 ## Architecture
 

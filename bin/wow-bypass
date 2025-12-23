@@ -1,0 +1,235 @@
+#!/bin/bash
+# WoW System - Bypass Activation
+# Author: Chude <chude@emeke.org>
+
+set -uo pipefail
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Bootstrap: Discover WOW_HOME and VERSION first (needed for --version)
+# ─────────────────────────────────────────────────────────────────────────────
+_discover_wow_home() {
+    local candidates=(
+        "${WOW_HOME:-}"
+        "${HOME}/.claude/wow-system"
+        "${HOME}/Projects/wow-system"
+        "$(dirname "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")")"
+    )
+    for candidate in "${candidates[@]}"; do
+        if [[ -n "${candidate}" && -f "${candidate}/src/security/bypass-core.sh" ]]; then
+            echo "${candidate}"
+            return 0
+        fi
+    done
+    return 1
+}
+
+WOW_HOME="$(_discover_wow_home)" || {
+    echo "Error: Cannot find WoW System" >&2
+    exit 1
+}
+
+VERSION="$(tr -d '[:space:]' < "${WOW_HOME}/VERSION" 2>/dev/null || echo "unknown")"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Global Options (handle before anything else)
+# ─────────────────────────────────────────────────────────────────────────────
+case "${1:-}" in
+    -h|--help|help)
+        cat << EOF
+
+  WoW
+  Bypass Activation
+
+  ────────────────────────────────────────
+
+  Usage
+    wow bypass
+
+  Description
+    Temporarily disable WoW protection to allow
+    operations that would normally be blocked.
+
+    Requires:
+    • Interactive terminal (TTY)
+    • Configured passphrase
+    • Valid integrity checksums
+
+  Safety
+    • Auto-expires after 4 hours max
+    • Auto-locks after 30 min inactivity
+    • Catastrophic operations always blocked
+
+  Options
+    -h, --help      Show this help
+    -v, --version   Show version
+
+  See Also
+    wow protect    Re-enable protection
+    wow status     Check current state
+    wow setup      Configure passphrase
+
+EOF
+        exit 0
+        ;;
+    -v|--version|version)
+        echo "wow-bypass ${VERSION}"
+        exit 0
+        ;;
+esac
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Design System
+# ─────────────────────────────────────────────────────────────────────────────
+C_RESET=$'\033[0m'
+C_BOLD=$'\033[1m'
+C_DIM=$'\033[2m'
+C_WHITE=$'\033[97m'
+C_GRAY=$'\033[90m'
+C_GREEN=$'\033[32m'
+C_YELLOW=$'\033[33m'
+C_RED=$'\033[31m'
+C_CYAN=$'\033[36m'
+
+# Progress bar
+print_progress() {
+    local current=$1
+    local total=$2
+    local width=${3:-16}
+    local filled=$((current * width / total))
+    local empty=$((width - filled))
+
+    printf "${C_DIM}[${C_RESET}"
+    printf "${C_CYAN}%s${C_RESET}" "$(printf '█%.0s' $(seq 1 $filled 2>/dev/null) || true)"
+    printf "${C_DIM}%s${C_RESET}" "$(printf '░%.0s' $(seq 1 $empty 2>/dev/null) || true)"
+    printf "${C_DIM}]${C_RESET}"
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Dependencies
+# ─────────────────────────────────────────────────────────────────────────────
+source "${WOW_HOME}/src/security/bypass-core.sh" || exit 1
+source "${WOW_HOME}/src/security/bypass-always-block.sh" 2>/dev/null || true
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Interface
+# ─────────────────────────────────────────────────────────────────────────────
+
+echo ""
+echo "  ${C_BOLD}${C_WHITE}WoW${C_RESET}"
+echo "  ${C_DIM}Bypass Activation${C_RESET}"
+echo ""
+echo "  ${C_DIM}────────────────────────────────────────${C_RESET}"
+echo ""
+
+# Pre-flight checks with progress
+total_checks=5
+current_check=0
+
+print_check_status() {
+    printf "\r  "
+    print_progress $current_check $total_checks
+    printf " ${C_DIM}%s${C_RESET}" "$1"
+}
+
+print_check_status "Checking TTY..."
+if ! bypass_check_tty; then
+    echo ""
+    echo ""
+    echo "  ${C_RED}●${C_RESET} Interactive terminal required"
+    echo ""
+    echo "  ${C_DIM}This command cannot be run by scripts or AI.${C_RESET}"
+    echo "  ${C_DIM}Open a terminal and run directly.${C_RESET}"
+    echo ""
+    exit 1
+fi
+current_check=$((current_check + 1))
+
+print_check_status "Checking configuration..."
+if ! bypass_is_configured; then
+    echo ""
+    echo ""
+    echo "  ${C_YELLOW}●${C_RESET} Not configured"
+    echo ""
+    echo "  ${C_DIM}Run${C_RESET} ${C_CYAN}wow-bypass-setup${C_RESET} ${C_DIM}first.${C_RESET}"
+    echo ""
+    exit 1
+fi
+current_check=$((current_check + 1))
+
+print_check_status "Checking status..."
+if bypass_is_active; then
+    echo ""
+    echo ""
+    echo "  ${C_GREEN}●${C_RESET} Already active"
+    echo ""
+    echo "  ${C_DIM}Bypass mode is currently enabled.${C_RESET}"
+    echo "  ${C_DIM}Run${C_RESET} ${C_CYAN}wow-protect${C_RESET} ${C_DIM}to re-enable protection.${C_RESET}"
+    echo ""
+    exit 0
+fi
+current_check=$((current_check + 1))
+
+print_check_status "Checking rate limit..."
+if ! bypass_check_rate_limit 2>/dev/null; then
+    echo ""
+    exit 1
+fi
+current_check=$((current_check + 1))
+
+print_check_status "Verifying integrity..."
+if ! bypass_verify_checksums 2>/dev/null; then
+    echo ""
+    echo ""
+    echo "  ${C_RED}●${C_RESET} Integrity check failed"
+    echo ""
+    echo "  ${C_DIM}Scripts may have been modified.${C_RESET}"
+    echo ""
+    exit 1
+fi
+current_check=$((current_check + 1))
+
+printf "\r  "
+print_progress $total_checks $total_checks
+printf " ${C_DIM}All checks passed${C_RESET} ${C_GREEN}✓${C_RESET}\n"
+echo ""
+
+# Authentication
+passphrase=$(bypass_read_passphrase "  ${C_WHITE}Passphrase${C_RESET} ") || {
+    echo ""
+    echo "  ${C_RED}●${C_RESET} Failed to read input"
+    exit 1
+}
+
+verify_result=0
+bypass_verify_passphrase "${passphrase}" || verify_result=$?
+passphrase=""
+
+if [[ ${verify_result} -ne 0 ]]; then
+    bypass_record_failure 2>/dev/null
+    echo ""
+    echo "  ${C_RED}●${C_RESET} Incorrect passphrase"
+    echo ""
+    exit 1
+fi
+
+# Activate
+echo ""
+printf "  ${C_DIM}Activating...${C_RESET}"
+
+if ! bypass_activate 2>/dev/null; then
+    echo ""
+    echo "  ${C_RED}●${C_RESET} Activation failed"
+    exit 1
+fi
+
+echo " ${C_GREEN}✓${C_RESET}"
+
+# Success
+echo ""
+echo "  ${C_DIM}────────────────────────────────────────${C_RESET}"
+echo ""
+echo "  ${C_GREEN}●${C_RESET} ${C_BOLD}Bypass Active${C_RESET}"
+echo ""
+echo "  ${C_DIM}Protection is disabled. Catastrophic operations${C_RESET}"
+echo "  ${C_DIM}remain blocked. Run${C_RESET} ${C_CYAN}wow-protect${C_RESET} ${C_DIM}when done.${C_RESET}"
+echo ""

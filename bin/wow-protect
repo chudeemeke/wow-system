@@ -1,0 +1,117 @@
+#!/bin/bash
+# WoW System - Re-enable Protection
+# Author: Chude <chude@emeke.org>
+
+set -uo pipefail
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Bootstrap: Discover WOW_HOME and VERSION first (needed for --version)
+# ─────────────────────────────────────────────────────────────────────────────
+_discover_wow_home() {
+    local candidates=(
+        "${WOW_HOME:-}"
+        "${HOME}/.claude/wow-system"
+        "${HOME}/Projects/wow-system"
+        "$(dirname "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")")"
+    )
+    for candidate in "${candidates[@]}"; do
+        if [[ -n "${candidate}" && -f "${candidate}/src/security/bypass-core.sh" ]]; then
+            echo "${candidate}"
+            return 0
+        fi
+    done
+    return 1
+}
+
+WOW_HOME="$(_discover_wow_home)" || {
+    echo "Error: Cannot find WoW System" >&2
+    exit 1
+}
+
+VERSION="$(tr -d '[:space:]' < "${WOW_HOME}/VERSION" 2>/dev/null || echo "unknown")"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Global Options (handle before anything else)
+# ─────────────────────────────────────────────────────────────────────────────
+case "${1:-}" in
+    -h|--help|help)
+        cat << EOF
+
+  WoW
+  Protection
+
+  ────────────────────────────────────────
+
+  Usage
+    wow protect
+
+  Description
+    Re-enable WoW protection after bypass mode.
+    Immediately restores all security validations.
+
+    Safe to run when already protected.
+
+  Options
+    -h, --help      Show this help
+    -v, --version   Show version
+
+  See Also
+    wow bypass     Temporarily disable protection
+    wow status     Check current state
+
+EOF
+        exit 0
+        ;;
+    -v|--version|version)
+        echo "wow-protect ${VERSION}"
+        exit 0
+        ;;
+esac
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Design System
+# ─────────────────────────────────────────────────────────────────────────────
+C_RESET=$'\033[0m'
+C_BOLD=$'\033[1m'
+C_DIM=$'\033[2m'
+C_WHITE=$'\033[97m'
+C_GREEN=$'\033[32m'
+C_CYAN=$'\033[36m'
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Dependencies
+# ─────────────────────────────────────────────────────────────────────────────
+source "${WOW_HOME}/src/security/bypass-core.sh" || exit 1
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Interface
+# ─────────────────────────────────────────────────────────────────────────────
+
+echo ""
+echo "  ${C_BOLD}${C_WHITE}WoW${C_RESET}"
+echo "  ${C_DIM}Protection${C_RESET}"
+echo ""
+echo "  ${C_DIM}────────────────────────────────────────${C_RESET}"
+echo ""
+
+if ! bypass_is_active 2>/dev/null; then
+    echo "  ${C_GREEN}●${C_RESET} ${C_BOLD}Protected${C_RESET}"
+    echo ""
+    echo "  ${C_DIM}Security is already active.${C_RESET}"
+    echo "  ${C_DIM}All operations are being validated.${C_RESET}"
+    echo ""
+    exit 0
+fi
+
+printf "  ${C_DIM}Restoring protection...${C_RESET}"
+bypass_deactivate 2>/dev/null
+echo " ${C_GREEN}✓${C_RESET}"
+
+echo ""
+echo "  ${C_DIM}────────────────────────────────────────${C_RESET}"
+echo ""
+echo "  ${C_GREEN}●${C_RESET} ${C_BOLD}Protected${C_RESET}"
+echo ""
+echo "  ${C_DIM}WoW security is now active.${C_RESET}"
+echo "  ${C_DIM}All operations will be validated.${C_RESET}"
+echo ""

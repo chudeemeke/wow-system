@@ -18,6 +18,8 @@ readonly WOW_BASH_HANDLER_LOADED=1
 # Source dependencies
 _BASH_HANDLER_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${_BASH_HANDLER_DIR}/../core/utils.sh"
+source "${_BASH_HANDLER_DIR}/../security/security-constants.sh" 2>/dev/null || true
+source "${_BASH_HANDLER_DIR}/../security/bypass-always-block.sh" 2>/dev/null || true
 source "${_BASH_HANDLER_DIR}/custom-rule-helper.sh" 2>/dev/null || true
 
 set -uo pipefail
@@ -60,6 +62,19 @@ readonly -a DANGEROUS_PATTERNS=(
     # Kernel/system manipulation
     "rm.*-rf\s+/boot"                    # Remove boot files
     ">/dev/(sd|hd|nvme)"                 # Write to disk directly
+
+	# SSRF: Cloud metadata endpoints (v6.1.1)
+      "curl.*169\.254\.169\.254"           # AWS/Azure metadata
+      "wget.*169\.254\.169\.254"           # AWS/Azure metadata
+      "curl.*metadata\.google\.internal"   # GCP metadata
+      "wget.*metadata\.google\.internal"   # GCP metadata
+      "curl.*100\.100\.100\.200"           # Alibaba Cloud metadata
+      "wget.*100\.100\.100\.200"           # Alibaba Cloud metadata
+
+      # System auth files (v6.1.1)
+      "cat.*/etc/shadow"                   # Password hashes
+      "cat.*/etc/sudoers"                  # Sudo configuration
+
 )
 
 # Emojis to remove from git commits

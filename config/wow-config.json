@@ -1,5 +1,8 @@
 {
-  "version": "5.4.4",
+  "_meta": {
+    "description": "WoW System configuration",
+    "version_source": "VERSION file at project root (SSOT)"
+  },
   "enforcement": {
     "enabled": true,
     "strict_mode": false,

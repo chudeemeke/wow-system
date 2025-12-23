@@ -15,7 +15,18 @@ set -euo pipefail
 # Constants
 # ============================================================================
 
-readonly WOW_VERSION="6.0.0"
+# Version: Read from VERSION file (Single Source of Truth)
+# Lookup order: 1) Script directory's VERSION, 2) WOW_HOME/VERSION, 3) Fallback
+_WOW_UTILS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+_WOW_VERSION_FILE="${_WOW_UTILS_DIR}/../../VERSION"
+if [[ -f "${_WOW_VERSION_FILE}" ]]; then
+    readonly WOW_VERSION="$(tr -d '[:space:]' < "${_WOW_VERSION_FILE}")"
+elif [[ -f "${WOW_HOME:-}/VERSION" ]]; then
+    readonly WOW_VERSION="$(tr -d '[:space:]' < "${WOW_HOME}/VERSION")"
+else
+    readonly WOW_VERSION="6.1.1"  # Fallback only if VERSION file missing
+fi
+
 readonly WOW_HOME="${WOW_HOME:-${HOME}/.claude/wow-system}"
 readonly WOW_LOG_DIR="${WOW_LOG_DIR:-${WOW_HOME}/logs}"
 readonly WOW_DATA_DIR="${WOW_DATA_DIR:-${WOW_HOME}/data}"

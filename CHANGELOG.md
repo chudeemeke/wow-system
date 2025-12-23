@@ -7,6 +7,383 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added - WoW Security v7.0 (Phase 1)
+
+**Exit Code 4 (SUPERADMIN-REQUIRED) and Bootstrap Security**
+
+#### Security Tier System
+
+- **TIER CRITICAL** (Exit 3): Operations that can NEVER be bypassed
+  - SSRF/Cloud metadata attacks
+  - System destruction commands
+  - Fork bombs
+  - System authentication files (/etc/shadow, /etc/sudoers)
+  - **NEW: Hook self-protection** (bootstrap security)
+
+- **TIER SUPERADMIN** (Exit 4): Operations requiring fingerprint authentication
+  - WoW bypass system files
+  - Security policy files
+  - SuperAdmin gate files
+  - Can be unlocked with `wow superadmin unlock` + fingerprint
+
+- **TIER HIGH** (Exit 2): Bypassable with `wow bypass`
+  - Protected system paths
+  - Sensitive directories
+  - Credential patterns
+
+#### Bootstrap Security (Hook Self-Protection)
+
+**Problem Solved**: AI could previously disable WoW by moving/renaming the hook file.
+
+**Solution**: Hook file added to CRITICAL tier (cannot be bypassed, even with SuperAdmin)
+- Patterns blocked: `.claude/hooks/user-prompt-submit.sh`, `.bak`, `.dev`, `.disabled` variants
+- Defense-in-depth: Combined with `chattr +i` for kernel-level protection
+
+#### Immutable File Protection
+
+- **`bin/wow-immutable`** - Helper script for `chattr +i` protection
+  - Commands: `lock`, `unlock`, `status`
+  - Requires sudo for lock/unlock
+  - Provides kernel-level protection AI cannot circumvent
+  - Works on Linux/WSL2 native filesystems
+
+- **`docs/IMMUTABLE-PROTECTION.md`** - Comprehensive guide
+  - Setup instructions
+  - WSL considerations
+  - Helper functions for .bashrc
+  - Troubleshooting guide
+
+#### Security Policy Updates
+
+- **`src/security/security-policies.sh`**:
+  - Added exit code constants: `EXIT_ALLOW=0`, `EXIT_WARN=1`, `EXIT_BLOCK=2`, `EXIT_CRITICAL=3`, `EXIT_SUPERADMIN=4`
+  - Added `POLICY_HOOK_PROTECTION` array for bootstrap security
+  - Added `POLICY_SUPERADMIN_REQUIRED` array for SuperAdmin-tier operations
+  - Added `policy_check_superadmin()` function
+  - Added `policy_is_superadmin_unlockable()` function
+  - Updated `policy_get_reason()` for all tiers
+
+#### Handler Router Updates
+
+- **`src/handlers/handler-router.sh`**:
+  - CRITICAL patterns checked FIRST (before bypass check)
+  - SUPERADMIN patterns checked after CRITICAL
+  - SuperAdmin mode integration (checks `superadmin_is_active()`)
+  - Exit code 4 propagation to hook
+
+#### Hook Updates
+
+- **`hooks/user-prompt-submit.sh`**:
+  - Exit code 4 handling with proper user messaging
+  - Guidance to run `wow superadmin unlock` for SuperAdmin-tier blocks
+  - **Session startup warning** if hook file is not protected with `chattr +i`
+  - Reminds AI and user to run `sudo wow-immutable lock` for production protection
+
+#### Test Coverage
+
+- **`tests/test-exit-codes.sh`** (17 tests, 100% passing)
+  - Exit code constant tests
+  - SUPERADMIN tier function tests
+  - CRITICAL vs SUPERADMIN separation tests
+  - Hook protection tests (5 new tests)
+  - Bootstrap security verification
+
+#### Messaging Framework (SOLID-Compliant)
+
+**New unified messaging system following SOLID principles and Apple-style design:**
+
+- **`src/ui/messaging/message-types.sh`** (SSOT)
+  - Single Source of Truth for colors, icons, prefixes
+  - Semantic color aliases (success=green, warning=yellow, etc.)
+  - 9 built-in message types: info, success, warning, error, security, debug, blocked, allowed, score
+  - Type registration API for extensibility (OCP)
+
+- **`src/ui/messaging/message-formatter.sh`** (Strategy Pattern)
+  - 4 formatters: terminal (colored), json, log (timestamped), plain
+  - Auto-detection based on environment (TTY, explicit setting)
+  - Formatter registration for custom outputs
+  - Apple-style visual hierarchy (consistent 2-space indent)
+
+- **`src/ui/messaging/messages.sh`** (Facade Pattern)
+  - Simple public API: `wow_msg "type" "message" "details"`
+  - Convenience functions: `wow_msg_info()`, `wow_msg_error()`, etc.
+  - Block messages: `wow_msg_block "type" "title" "line1" "line2"`
+  - Level filtering (debug < info < warning < error)
+  - Global enable/disable
+  - Color exports for inline use: `${WOW_C_CYAN}text${WOW_C_RESET}`
+
+- **`src/ui/messaging/startup-checks.sh`** (Registry Pattern)
+  - Extensible startup check system
+  - Priority-based execution (1=first, 99=last)
+  - Built-in checks: bypass_active, superadmin_active, hook_immutable, low_score
+  - Easy custom check registration
+  - Enable/disable individual checks
+
+**Design Patterns Applied:**
+- **SSOT**: All colors/icons defined once in message-types.sh
+- **Strategy**: Swap formatters without changing client code
+- **Facade**: Simple `wow_msg()` hides complex subsystem
+- **Registry**: Add checks without modifying existing code
+- **Template Method**: Standard check interface, custom implementations
+
+**Apple-Style Design:**
+- Clean, aligned output with consistent 2-space indent
+- Dimmed details for visual hierarchy
+- Minimal but informative messages
+- "It just works" - auto-detects terminal vs non-TTY
+
+### Added - WoW Security v7.0 (Phase 2)
+
+**Heuristic Evasion Detection - Catches AI attempts to bypass security through obfuscation**
+
+#### Detection Categories
+
+- **Encoding Evasion**
+  - Base64 decode piped to shell
+  - Hex decode execution
+  - Octal escape sequences piped to shell
+
+- **Variable Substitution Attacks**
+  - Variable-built dangerous commands
+  - Array expansion execution
+  - Indirect variable execution via eval
+
+- **Command Obfuscation**
+  - Quote insertion obfuscation
+  - Backslash obfuscation
+  - String concatenation
+  - Null byte escape sequences
+  - Case variation
+
+- **Indirect Execution**
+  - eval commands
+  - bash -c / sh -c execution
+  - Backtick command execution
+  - source/dot from temp directories
+
+- **Network Evasion**
+  - Curl piped to shell
+  - Wget piped to bash
+  - URL-encoded IP addresses (SSRF obfuscation)
+
+#### Confidence Scoring System
+
+- **Block threshold**: >= 70% confidence
+- **Warn threshold**: >= 40% confidence
+- **Allow**: < 40% confidence
+
+Each detection assigns a confidence score based on the evasion technique severity.
+
+#### New Files
+
+- **`src/security/heuristics/detector.sh`** (430 LOC)
+  - Detection functions for each category
+  - Confidence scoring and reason tracking
+  - Public API: `heuristic_check()`, `heuristic_get_confidence()`, `heuristic_get_reason()`
+  - Self-test validation
+
+- **`tests/test-heuristics.sh`** (29 tests, 100% passing)
+  - Encoding evasion tests (5)
+  - Variable substitution tests (4)
+  - Command obfuscation tests (5)
+  - Indirect execution tests (6)
+  - Network evasion tests (3)
+  - Confidence scoring tests (3)
+  - Reason reporting tests (1)
+  - Function existence tests (2)
+
+- **`tests/test-heuristic-integration.sh`** (6 tests)
+  - Handler router integration tests
+  - Block/allow verification
+
+#### Handler Router Integration
+
+- **`src/handlers/handler-router.sh`**:
+  - Sources `src/security/heuristics/detector.sh`
+  - Heuristic check runs AFTER bypass check (can be bypassed)
+  - Heuristic check runs BEFORE individual handlers
+  - Exit code 2 (BLOCK) on high confidence evasion
+  - Warning logged on medium confidence
+
+#### Design Principles
+
+- **Defense in Depth**: Multiple detection layers work together
+- **Confidence Scoring**: Graduated response, not binary
+- **Extensible**: Add new patterns without modifying core
+- **Low False Positives**: Legitimate use cases allowed
+- **Bypassable**: Can be disabled with `wow bypass` for legitimate testing
+
+### Added - WoW Security v7.0 (Phase 3)
+
+**Content Correlator - Detects split attacks across multiple operations**
+
+#### Attack Patterns Detected
+
+- **Write-then-Execute**
+  - Write script to temp directory, then execute it
+  - Write script, chmod +x, then run
+  - Dot-source or source from temp paths
+
+- **Download-then-Execute**
+  - Curl/wget file to disk, then execute
+  - Fetch remote script, then source it
+
+- **Staged Building**
+  - Build command across multiple variable assignments
+  - Array construction followed by execution
+  - Piece-by-piece command assembly
+
+- **Config Poisoning**
+  - Modifications to .bashrc, .profile, .zshrc
+  - SSH config changes (ProxyCommand injection)
+  - PATH manipulation in shell configs
+
+#### Sliding Window Tracking
+
+- Tracks last 50 operations (configurable)
+- 30-minute TTL for operation history
+- Automatic expiry of old operations
+- Redirect detection (tracks `>` as implicit Write)
+
+#### Risk Scoring
+
+- **Block threshold**: >= 70% risk
+- **Warn threshold**: >= 40% risk
+- System binaries: Low risk (10%)
+- Recently written temp files: High risk (90%)
+- Downloaded then executed: Very high risk (95%)
+
+#### New Files
+
+- **`src/security/correlator/correlator.sh`** (450 LOC)
+  - Operation tracking with sliding window
+  - Pattern detection functions
+  - Risk scoring engine
+  - Public API: `correlator_track()`, `correlator_check()`, `correlator_get_risk()`
+
+- **`tests/test-correlator.sh`** (24 tests, 100% passing)
+  - Write-then-execute tests (5)
+  - Download-then-execute tests (3)
+  - Staged building tests (2)
+  - Config poisoning tests (3)
+  - Temporal correlation tests (2)
+  - Sliding window tests (2)
+  - Risk scoring tests (3)
+  - Function existence tests (4)
+
+#### Handler Router Integration
+
+- **`src/handlers/handler-router.sh`**:
+  - Sources `src/security/correlator/correlator.sh`
+  - Correlator check runs AFTER heuristic check
+  - All operations tracked for future correlation
+  - Exit code 2 (BLOCK) on high-risk patterns
+
+#### Design Principles
+
+- **Defense in Depth**: Works alongside heuristic detector
+- **Temporal Awareness**: Considers operation timing and sequence
+- **Low False Positives**: Normal workflows allowed
+- **Bypassable**: Can be disabled with `wow bypass`
+
+### Added - WoW Security v7.0 (Phase 4)
+
+**SuperAdmin Biometric Authentication - Fingerprint unlock for high-privilege operations**
+
+#### Authentication Methods
+
+- **Primary: Fingerprint Authentication**
+  - Linux: Uses `fprintd-verify` (Fingerprint daemon)
+  - macOS: Uses Touch ID via security framework
+  - Automatic detection of biometric hardware
+
+- **Fallback: Strong Passphrase**
+  - Minimum 12 characters (vs 8 for bypass)
+  - Salted SHA512 hashing
+  - Stored separately from bypass passphrase
+  - Setup via `wow superadmin setup`
+
+#### Safety Features (Shorter Than Bypass)
+
+- **Maximum Duration**: 15 minutes (vs 4 hours for bypass)
+- **Inactivity Timeout**: 5 minutes (vs 30 minutes for bypass)
+- **TTY Enforcement**: Cannot be activated from scripts or AI
+- **Rate Limiting**: Exponential backoff on failed attempts
+
+#### Token Security
+
+- **HMAC-SHA512 Verification**: Tamper-proof tokens
+- **Expiry Timestamp**: Built into token, protected by HMAC
+- **Activity Tracking**: Updates on each SuperAdmin operation
+- **Automatic Cleanup**: Expired tokens rejected
+
+#### CLI Commands
+
+- **`wow superadmin unlock`** - Authenticate with fingerprint/passphrase
+  - Pre-flight checks (TTY, rate limit, configuration)
+  - Biometric detection and fallback
+  - Token creation with HMAC protection
+
+- **`wow superadmin lock`** - Re-lock immediately
+  - Idempotent (safe to run multiple times)
+  - Clears token and activity tracking
+
+- **`wow superadmin status`** - Check current state
+  - Three states: NOT_CONFIGURED, LOCKED, UNLOCKED
+  - Shows biometric availability
+  - Shows remaining time when unlocked
+
+- **`wow superadmin setup`** - Configure fallback passphrase
+  - TTY required
+  - Passphrase confirmation
+  - Secure hash storage
+
+#### Security Tier Integration
+
+- **SUPERADMIN tier (Exit 4)** operations require fingerprint
+- **CRITICAL tier (Exit 3)** still blocked even with SuperAdmin
+- Handler router checks SuperAdmin status before allowing SUPERADMIN-tier operations
+- Clear user messaging on what's required
+
+#### New Files
+
+- **`src/security/superadmin/superadmin-core.sh`** (500 LOC)
+  - Core authentication and token management
+  - Fingerprint and passphrase verification
+  - Activity tracking and expiry logic
+  - Rate limiting with exponential backoff
+
+- **`bin/wow-superadmin`** (345 LOC)
+  - CLI command with unlock/lock/status/setup
+  - Color-coded terminal output
+  - Help documentation
+
+- **`tests/test-superadmin.sh`** (27 tests, 100% passing)
+  - Function existence tests (6)
+  - State management tests (5)
+  - TTY enforcement tests (2)
+  - Biometric detection tests (2)
+  - Token security tests (3)
+  - Inactivity timeout tests (3)
+  - Security policy integration tests (2)
+  - Status/display tests (2)
+  - Rate limiting tests (2)
+
+#### Modified Files
+
+- **`bin/wow`**: Added `superadmin|sa` command routing
+- **`src/handlers/handler-router.sh`**: Sources superadmin-core.sh for status checks
+
+#### Design Principles
+
+- **Defense in Depth**: Biometric + passphrase + HMAC + expiry
+- **Human-Only**: TTY enforcement prevents AI/script activation
+- **Fail-Secure**: Errors keep protection ON
+- **Shorter Timeouts**: More restrictive than bypass (safety)
+- **Audit Trail**: All SuperAdmin events tracked in session metrics
+
+---
+
 ### Added - WoW Structure Standard v1.0.0
 
 **Single Source of Truth for Project Structure Across All Projects**
@@ -102,6 +479,176 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Custom conventions per project
 - Dependency coupling analysis
 - Performance impact metrics
+
+---
+
+## [6.1.0] - 2025-12-22
+
+### Added - Bypass System (TTY-Enforced Owner Override)
+
+**Complete "sudo-style" bypass system for temporary security disabling**
+
+This release introduces a comprehensive bypass system that allows the system owner to temporarily disable WoW protection while maintaining security for catastrophic operations.
+
+#### Core Security Modules
+
+- **`src/security/bypass-core.sh`** (600+ LOC)
+  - TTY enforcement prevents AI/script activation (reads from `/dev/tty`)
+  - Salted SHA512 passphrase hashing (format: `salt:hash`, 128 hex chars)
+  - HMAC-SHA512 token verification (format: `version:created:expires:hmac`)
+  - **Safety Dead-Bolt**: Auto-relock after max duration (4 hours) OR inactivity (30 minutes)
+  - iOS-style exponential rate limiting (0, 0, 60s, 300s, 900s, 3600s, permanent)
+  - Constant-time comparison for timing attack prevention
+  - Script integrity verification via SHA256 checksums
+  - Integration with WoW infrastructure (logging, paths, metrics)
+
+- **`src/security/bypass-always-block.sh`** (120 LOC)
+  - Operations blocked EVEN when bypass is active
+  - 6 categories of always-blocked patterns:
+    1. System Destruction (12 patterns)
+    2. Boot/Disk Corruption (3 patterns)
+    3. Fork Bombs (1 pattern)
+    4. SSRF/Cloud Credentials (3 patterns)
+    5. Bypass Self-Protection (9 patterns)
+    6. System Authentication (2 patterns)
+  - Pattern anchoring for precise matching (e.g., blocks `/home` but allows `/home/user/project`)
+
+#### CLI Commands
+
+- **`bin/wow-bypass-setup`** - Initial passphrase configuration
+  - TTY enforcement
+  - Passphrase confirmation
+  - Minimum length validation (8 chars)
+  - Secure hash storage
+  - Checksum generation
+
+- **`bin/wow-bypass`** - Activate bypass mode
+  - 5 pre-flight security checks (TTY, configured, already-active, rate-limit, checksums)
+  - Color-coded UX with clear feedback
+  - Rate limiting warnings
+  - Immediate passphrase clearing from memory
+
+- **`bin/wow-protect`** - Re-enable protection
+  - Idempotent (safe to run multiple times)
+  - No TTY requirement (scripts can re-enable protection)
+  - Clear status feedback
+
+- **`bin/wow-bypass-status`** - Check current state
+  - Three states: NOT_CONFIGURED, PROTECTED, BYPASS_ACTIVE
+  - Exit codes for scripting (0=protected, 1=bypass, 2=not-configured)
+  - Failed attempt counter display
+
+#### Handler Router Integration
+
+- **Single integration point** in `handler-router.sh`
+  - Bypass check at top of `handler_route()` function
+  - Always-block patterns checked even in bypass mode
+  - Pass-through for non-catastrophic operations when bypass active
+  - Debug logging for bypass decisions
+
+#### Test Suites
+
+- **`tests/test-bypass-core.sh`** (71 tests)
+  - TTY detection (4 tests)
+  - Passphrase hashing basic (3 tests)
+  - Passphrase hashing edge cases (5 tests)
+  - Passphrase verification (6 tests)
+  - Token tests basic (6 tests)
+  - Token tests edge cases (3 tests)
+  - Bypass state tests (4 tests)
+  - Rate limiting tests (5 tests)
+  - Activation/deactivation (4 tests)
+  - Configuration state (4 tests)
+  - Status helpers (3 tests)
+  - **Safety Dead-Bolt expiry tests (15 tests)**
+  - Security attack simulation (3 tests)
+  - Script integrity tests (6 tests)
+
+- **`tests/test-bypass-always-block.sh`** (40 tests)
+  - All 6 categories tested
+  - Edge cases (subdirectory vs root deletion)
+  - Safe operations verification
+  - Reason lookup validation
+
+#### Safety Dead-Bolt (Auto-Relock Mechanism)
+
+**Problem**: If user forgets to re-enable protection after bypass, system remains vulnerable indefinitely.
+
+**Solution**: Hybrid expiry system with two independent kill switches:
+
+1. **Maximum Duration** (default: 4 hours)
+   - Absolute time limit from activation
+   - Token v2 format includes expiry timestamp
+   - HMAC protects against expiry tampering
+
+2. **Inactivity Timeout** (default: 30 minutes)
+   - Tracks last activity via `handler-router.sh`
+   - Each bypassed operation updates timestamp
+   - Auto-deactivates after 30 min of no activity
+
+**Configurable via environment variables:**
+- `BYPASS_MAX_DURATION`: Max bypass duration in seconds (default: 14400)
+- `BYPASS_INACTIVITY_TIMEOUT`: Inactivity timeout in seconds (default: 1800)
+
+#### Installer Updates
+
+- Creates `~/.wow-data/bypass/` directory with 700 permissions
+- Deploys `bin/` directory with executable permissions
+- Tests bypass modules during installation
+- Adds bypass setup instructions to "Next Steps"
+
+### Security Design Principles
+
+1. **Human-Only Activation**: TTY enforcement prevents AI/script bypass
+2. **Defense in Depth**: Multiple security layers (TTY + passphrase + HMAC + checksums)
+3. **Fail-Secure**: Errors keep protection ON
+4. **Always-Block**: Catastrophic operations blocked even when bypassed
+5. **Rate Limiting**: iOS-style exponential backoff prevents brute force
+6. **Audit Trail**: All bypass events tracked in session metrics
+7. **Safety Dead-Bolt**: Auto-relock on max duration OR inactivity
+
+### Changed - Cryptographic Upgrade (SHA512)
+
+**Breaking Change**: Upgraded from SHA256 to SHA512 for stronger security
+
+- **Passphrase Hashing**: SHA512 (128 hex chars vs 64)
+- **HMAC Tokens**: HMAC-SHA512 (128 hex chars)
+- **Script Checksums**: Remain SHA256 (industry standard for integrity)
+
+**Impact**: Existing v1 tokens (SHA256 HMAC) are no longer compatible. Users must re-authenticate after upgrade.
+
+### Changed - Version Management (SSOT)
+
+**VERSION file as Single Source of Truth**
+
+- Created `VERSION` file at project root containing version number
+- Updated `src/core/utils.sh` to read from VERSION file dynamically
+- Lookup order: Project VERSION → WOW_HOME/VERSION → Fallback
+- Config file now references VERSION file in `_version_note`
+- Installer deploys VERSION file during installation
+- **Benefit**: Change version in ONE place, propagates everywhere
+
+### Files Added
+
+```
+VERSION                            # Single Source of Truth for version
+src/security/bypass-core.sh        # Core library (500 LOC)
+src/security/bypass-always-block.sh # Always-block patterns (120 LOC)
+bin/wow-bypass-setup               # Setup command
+bin/wow-bypass                     # Activation command
+bin/wow-protect                    # Protection restore command
+bin/wow-bypass-status              # Status command
+tests/test-bypass-core.sh          # Core tests (50 tests)
+tests/test-bypass-always-block.sh  # Pattern tests (40 tests)
+```
+
+### Files Modified
+
+```
+src/handlers/handler-router.sh     # Bypass integration
+install.sh                         # Bypass deployment
+config/wow-config.json             # Version 6.0.0
+```
 
 ---
 
