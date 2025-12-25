@@ -66,7 +66,7 @@ show_help() {
     cat << EOF
 
   ${C_BOLD}WoW SuperAdmin${C_RESET}
-  High-privilege mode for sensitive operations
+  High-privilege mode (Tier 2) for sensitive operations
 
   ${C_DIM}────────────────────────────────────────${C_RESET}
 
@@ -78,20 +78,37 @@ show_help() {
     lock        Re-lock SuperAdmin mode
     status      Show current SuperAdmin status
     setup       Configure fallback passphrase (for systems without fingerprint)
+    setup --hello  Enroll Windows Hello (WSL2 only - fingerprint/face/PIN)
     help        Show this help message
+
+  ${C_BOLD}Zone Access (Tier 2)${C_RESET}
+    SuperAdmin unlocks ALL zones except Nuclear:
+    • DEVELOPMENT zone (~/Projects/*)
+    • CONFIG zone (~/.config/*, ~/.claude/*)
+    • SENSITIVE zone (~/.ssh/*, ~/.aws/*, ~/.gnupg/*)
+    • SYSTEM zone (/etc/*, /bin/*, /usr/*)
+    • WOW_SELF zone (WoW handlers, hooks, security files)
+    • GENERAL zone (no restrictions)
+
+    NEVER unlockable (Nuclear - Tier 3):
+    • rm -rf /, fork bombs, dd to devices
 
   ${C_BOLD}Security${C_RESET}
     SuperAdmin requires biometric (fingerprint) authentication.
     For systems without biometrics, a strong passphrase fallback is available.
 
+    ${C_BOLD}Hybrid Mode:${C_RESET} SuperAdmin unlock also grants Bypass capabilities.
+    If you pass the harder auth (fingerprint), you've passed the easier one too.
+
     SuperAdmin mode automatically locks after:
-    - 15 minutes maximum
-    - 5 minutes of inactivity
+    • 20 minutes maximum
+    • 5 minutes of inactivity
 
   ${C_BOLD}Examples${C_RESET}
-    wow superadmin unlock     # Authenticate with fingerprint
-    wow superadmin status     # Check if unlocked
-    wow superadmin lock       # Re-lock immediately
+    wow superadmin unlock        # Authenticate with fingerprint
+    wow superadmin status        # Check if unlocked
+    wow superadmin lock          # Re-lock immediately
+    wow superadmin setup --hello # Enroll Windows Hello (WSL2)
 
 EOF
 }
@@ -148,9 +165,14 @@ cmd_unlock() {
         local remaining
         remaining=$(superadmin_get_remaining)
         echo ""
-        echo "  ${C_GREEN}●${C_RESET} SuperAdmin unlocked"
+        echo "  ${C_GREEN}●${C_RESET} ${C_BOLD}SuperAdmin Unlocked (Tier 2)${C_RESET}"
+        echo "  ${C_GREEN}●${C_RESET} Bypass also granted ${C_DIM}(hybrid mode)${C_RESET}"
+        echo ""
+        echo "  ${C_DIM}Unlocked zones:${C_RESET}"
+        echo "    ${C_DIM}DEVELOPMENT, CONFIG, SENSITIVE, SYSTEM, WOW_SELF, GENERAL${C_RESET}"
         echo ""
         echo "  ${C_DIM}Expires in $((remaining / 60)) minutes.${C_RESET}"
+        echo "  ${C_DIM}Nuclear operations (rm -rf /, etc.) remain blocked.${C_RESET}"
         echo "  ${C_DIM}Run${C_RESET} ${C_CYAN}wow superadmin lock${C_RESET} ${C_DIM}to re-lock.${C_RESET}"
         echo ""
         return 0
@@ -179,8 +201,9 @@ cmd_lock() {
     superadmin_deactivate
 
     echo "  ${C_GREEN}●${C_RESET} SuperAdmin locked"
+    echo "  ${C_GREEN}●${C_RESET} Bypass also revoked ${C_DIM}(hybrid mode)${C_RESET}"
     echo ""
-    echo "  ${C_DIM}High-privilege operations now require re-authentication.${C_RESET}"
+    echo "  ${C_DIM}All operations now require re-authentication.${C_RESET}"
     echo ""
 }
 
@@ -199,7 +222,8 @@ cmd_status() {
         UNLOCKED)
             local remaining
             remaining=$(superadmin_get_remaining)
-            echo "  ${C_GREEN}●${C_RESET} ${C_BOLD}Unlocked${C_RESET}"
+            echo "  ${C_GREEN}●${C_RESET} ${C_BOLD}SuperAdmin${C_RESET}: Unlocked"
+            echo "  ${C_GREEN}●${C_RESET} ${C_BOLD}Bypass${C_RESET}: Granted ${C_DIM}(hybrid mode)${C_RESET}"
             echo ""
             echo "  ${C_DIM}Remaining: $((remaining / 60)) minutes${C_RESET}"
             ;;
@@ -226,10 +250,118 @@ cmd_status() {
     # Show biometric status
     echo "  ${C_DIM}Biometric:${C_RESET} $(superadmin_has_biometric && echo "Available" || echo "Not available")"
     echo "  ${C_DIM}Fallback:${C_RESET} $([[ -f "${SUPERADMIN_HASH_FILE}" ]] && echo "Configured" || echo "Not configured")"
+
+    # Show Windows Hello status (WSL2 only)
+    if [[ -f /proc/sys/fs/binfmt_misc/WSLInterop ]]; then
+        if _superadmin_has_hello_bridge 2>/dev/null; then
+            if superadmin_is_hello_enrolled; then
+                echo "  ${C_DIM}Windows Hello:${C_RESET} Enrolled"
+            else
+                echo "  ${C_DIM}Windows Hello:${C_RESET} Not enrolled (run: wow superadmin setup --hello)"
+            fi
+        else
+            echo "  ${C_DIM}Windows Hello:${C_RESET} Bridge not installed"
+        fi
+    fi
     echo ""
 }
 
+cmd_setup_hello() {
+    # Windows Hello enrollment (WSL2 only)
+
+    # Check if running in WSL2
+    if [[ ! -f /proc/sys/fs/binfmt_misc/WSLInterop ]]; then
+        echo "  ${C_RED}●${C_RESET} Windows Hello is only available in WSL2"
+        echo ""
+        echo "  ${C_DIM}For native Linux, use fprintd for fingerprint authentication.${C_RESET}"
+        echo ""
+        return 1
+    fi
+
+    # Check if bridge is installed
+    if ! _superadmin_has_hello_bridge 2>/dev/null; then
+        echo "  ${C_RED}●${C_RESET} Windows Hello bridge not installed"
+        echo ""
+        echo "  ${C_DIM}Build and install the bridge first:${C_RESET}"
+        echo ""
+        echo "  ${C_CYAN}1.${C_RESET} Open PowerShell on Windows"
+        echo "  ${C_CYAN}2.${C_RESET} Navigate to: ${C_DIM}wow-system/tools/windows-hello-bridge${C_RESET}"
+        echo "  ${C_CYAN}3.${C_RESET} Run: ${C_DIM}dotnet publish src/WoWHelloBridge.csproj -c Release -r win-x64 --self-contained -o build/${C_RESET}"
+        echo "  ${C_CYAN}4.${C_RESET} Run: ${C_DIM}.\\scripts\\install.ps1${C_RESET}"
+        echo ""
+        return 1
+    fi
+
+    # Check if Windows Hello is available
+    echo "  ${C_DIM}Checking Windows Hello availability...${C_RESET}"
+    echo ""
+
+    if ! _superadmin_check_hello_available 2>/dev/null; then
+        echo "  ${C_RED}●${C_RESET} Windows Hello not available"
+        echo ""
+        echo "  ${C_DIM}Ensure Windows Hello is configured:${C_RESET}"
+        echo "  ${C_DIM}Windows Settings > Accounts > Sign-in options${C_RESET}"
+        echo ""
+        return 1
+    fi
+
+    echo "  ${C_GREEN}●${C_RESET} Windows Hello available"
+    echo ""
+
+    # Check if already enrolled
+    if superadmin_is_hello_enrolled; then
+        echo "  ${C_YELLOW}●${C_RESET} Already enrolled with Windows Hello"
+        echo ""
+        printf "  Re-enroll? This will create a new key pair. [y/N] " > /dev/tty
+        read -r answer < /dev/tty
+        if [[ ! "${answer}" =~ ^[Yy] ]]; then
+            echo ""
+            echo "  ${C_DIM}Keeping existing enrollment.${C_RESET}"
+            echo ""
+            return 0
+        fi
+        echo ""
+    fi
+
+    # Perform enrollment
+    echo "  ${C_DIM}Starting Windows Hello enrollment...${C_RESET}"
+    echo "  ${C_DIM}A Windows prompt will appear for fingerprint/face/PIN.${C_RESET}"
+    echo ""
+
+    if superadmin_enroll_hello; then
+        echo ""
+        echo "  ${C_GREEN}●${C_RESET} Windows Hello enrolled successfully"
+        echo ""
+        echo "  ${C_DIM}You can now use${C_RESET} ${C_CYAN}wow superadmin unlock${C_RESET}"
+        echo "  ${C_DIM}to authenticate with Windows Hello.${C_RESET}"
+        echo ""
+        return 0
+    else
+        echo ""
+        echo "  ${C_RED}●${C_RESET} Windows Hello enrollment failed"
+        echo ""
+        echo "  ${C_DIM}Check that Windows Hello is properly configured.${C_RESET}"
+        echo ""
+        return 1
+    fi
+}
+
 cmd_setup() {
+    local hello_mode=0
+
+    # Check for --hello flag
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --hello|-hello)
+                hello_mode=1
+                shift
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+
     echo ""
     echo "  ${C_BOLD}WoW${C_RESET}"
     echo "  ${C_CYAN}SuperAdmin Setup${C_RESET}"
@@ -242,6 +374,12 @@ cmd_setup() {
         echo "  ${C_RED}●${C_RESET} Requires interactive terminal"
         echo ""
         return 1
+    fi
+
+    # Windows Hello enrollment mode
+    if [[ ${hello_mode} -eq 1 ]]; then
+        cmd_setup_hello
+        return $?
     fi
 
     # Check if biometric available
@@ -334,7 +472,7 @@ case "${command}" in
         cmd_status
         ;;
     setup|configure)
-        cmd_setup
+        cmd_setup "$@"
         ;;
     *)
         echo "Unknown command: ${command}" >&2

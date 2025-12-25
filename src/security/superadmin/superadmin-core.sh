@@ -20,6 +20,13 @@ readonly WOW_SUPERADMIN_CORE_LOADED=1
 _SUPERADMIN_CORE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${_SUPERADMIN_CORE_DIR}/../../core/utils.sh" 2>/dev/null || true
 
+# Source bypass-core for hybrid mode (SuperAdmin grants bypass capabilities)
+source "${_SUPERADMIN_CORE_DIR}/../bypass-core.sh" 2>/dev/null || true
+
+# v8.0: Zone system integration
+source "${_SUPERADMIN_CORE_DIR}/../zones/zone-definitions.sh" 2>/dev/null || true
+source "${_SUPERADMIN_CORE_DIR}/../zones/zone-validator.sh" 2>/dev/null || true
+
 set -uo pipefail
 
 # ============================================================================
@@ -32,12 +39,18 @@ readonly SUPERADMIN_TOKEN_FILE="${SUPERADMIN_DATA_DIR}/active.token"
 readonly SUPERADMIN_HASH_FILE="${SUPERADMIN_DATA_DIR}/fallback.hash"
 readonly SUPERADMIN_ACTIVITY_FILE="${SUPERADMIN_DATA_DIR}/last_activity"
 readonly SUPERADMIN_FAILURES_FILE="${SUPERADMIN_DATA_DIR}/failures.json"
+readonly SUPERADMIN_HELLO_PUBKEY_FILE="${SUPERADMIN_DATA_DIR}/hello-pubkey.b64"
+
+# Windows Hello Bridge (WSL2 integration)
+# The bridge is a Windows executable that enables Windows Hello from WSL
+readonly SUPERADMIN_HELLO_BRIDGE_NAME="WoWHelloBridge.exe"
 
 # Token version
 readonly SUPERADMIN_TOKEN_VERSION="1"
 
-# Safety Dead-Bolt: SHORTER timeouts than bypass (more restrictive)
-readonly SUPERADMIN_MAX_DURATION="${SUPERADMIN_MAX_DURATION:-900}"           # 15 minutes (vs 4 hours for bypass)
+# v8.0: Safety Dead-Bolt timeouts (Tier 2)
+# SuperAdmin has SHORTER timeouts than bypass for extra security
+readonly SUPERADMIN_MAX_DURATION="${SUPERADMIN_MAX_DURATION:-1200}"           # 20 minutes (vs 4 hours for bypass)
 readonly SUPERADMIN_INACTIVITY_TIMEOUT="${SUPERADMIN_INACTIVITY_TIMEOUT:-300}"  # 5 minutes (vs 30 min for bypass)
 
 # Minimum passphrase length for fallback auth
@@ -56,6 +69,171 @@ superadmin_init() {
         chmod 700 "${SUPERADMIN_DATA_DIR}"
     fi
     return 0
+}
+
+# ============================================================================
+# Windows Hello Bridge (WSL2 Integration)
+# ============================================================================
+
+# Find the Windows Hello bridge executable
+# Searches common installation locations
+_superadmin_find_hello_bridge() {
+    local bridge_path=""
+
+    # Get Windows username
+    local win_user=""
+    if command -v cmd.exe &>/dev/null; then
+        win_user=$(cmd.exe /c "echo %USERNAME%" 2>/dev/null | tr -d '\r\n')
+    fi
+
+    # Search paths (in order of preference)
+    local search_paths=(
+        # User-specific installation
+        "/mnt/c/Users/${win_user}/AppData/Local/Programs/WoW/${SUPERADMIN_HELLO_BRIDGE_NAME}"
+        # WoW project tools directory (development)
+        "${_SUPERADMIN_CORE_DIR}/../../../tools/windows-hello-bridge/build/${SUPERADMIN_HELLO_BRIDGE_NAME}"
+        # System-wide installation
+        "/mnt/c/Program Files/WoW/${SUPERADMIN_HELLO_BRIDGE_NAME}"
+        "/mnt/c/Program Files (x86)/WoW/${SUPERADMIN_HELLO_BRIDGE_NAME}"
+    )
+
+    for path in "${search_paths[@]}"; do
+        if [[ -f "${path}" ]]; then
+            bridge_path="${path}"
+            break
+        fi
+    done
+
+    echo "${bridge_path}"
+}
+
+# Check if Windows Hello bridge is available
+_superadmin_has_hello_bridge() {
+    local bridge_path
+    bridge_path=$(_superadmin_find_hello_bridge)
+
+    if [[ -n "${bridge_path}" ]] && [[ -f "${bridge_path}" ]]; then
+        return 0
+    fi
+    return 1
+}
+
+# Call the Windows Hello bridge with arguments
+# Returns: bridge output on stdout, exit code from bridge
+_superadmin_call_hello_bridge() {
+    local bridge_path
+    local args=("$@")
+
+    bridge_path=$(_superadmin_find_hello_bridge)
+
+    if [[ -z "${bridge_path}" ]]; then
+        echo "ERROR:Bridge not found" >&2
+        return 1
+    fi
+
+    # Call the Windows executable from WSL
+    "${bridge_path}" "${args[@]}" 2>/dev/null
+    return $?
+}
+
+# Check Windows Hello availability via bridge
+_superadmin_check_hello_available() {
+    local result
+
+    if ! _superadmin_has_hello_bridge; then
+        return 1
+    fi
+
+    result=$(_superadmin_call_hello_bridge --check 2>/dev/null)
+
+    if [[ "${result}" =~ ^AVAILABLE: ]]; then
+        return 0
+    fi
+
+    return 1
+}
+
+# Enroll with Windows Hello
+# Verifies Windows Hello is working and stores enrollment marker
+superadmin_enroll_hello() {
+    local result
+    local exit_code
+
+    if ! _superadmin_has_hello_bridge; then
+        echo "Windows Hello bridge not found." >&2
+        echo "Build and install from: tools/windows-hello-bridge/" >&2
+        return 1
+    fi
+
+    echo "Testing Windows Hello..." > /dev/tty 2>/dev/null || true
+
+    # Use --verify (or --enroll for compatibility)
+    result=$(_superadmin_call_hello_bridge --verify 2>&1)
+    exit_code=$?
+
+    if [[ ${exit_code} -ne 0 ]]; then
+        echo "Windows Hello verification failed: ${result}" >&2
+        return 1
+    fi
+
+    if [[ "${result}" =~ ^VERIFIED: ]] || [[ "${result}" =~ ^ENROLLED: ]]; then
+        # Store enrollment marker (just a timestamp, no keys needed)
+        superadmin_init || return 1
+        date +%s > "${SUPERADMIN_HELLO_PUBKEY_FILE}" || return 1
+        chmod 600 "${SUPERADMIN_HELLO_PUBKEY_FILE}"
+
+        wow_info "Windows Hello configured successfully" 2>/dev/null || true
+        return 0
+    fi
+
+    echo "Unexpected response: ${result}" >&2
+    return 1
+}
+
+# Authenticate with Windows Hello
+# Returns: 0=success, 1=failed, 2=not available
+_superadmin_authenticate_hello() {
+    local result
+    local exit_code
+
+    # Check if enrolled
+    if [[ ! -f "${SUPERADMIN_HELLO_PUBKEY_FILE}" ]]; then
+        echo "Windows Hello not configured. Run 'wow superadmin setup --hello' first." >&2
+        return 2
+    fi
+
+    # Request verification (triggers Windows Hello prompt)
+    echo "Requesting Windows Hello verification..." > /dev/tty 2>/dev/null || true
+    result=$(_superadmin_call_hello_bridge --verify 2>&1)
+    exit_code=$?
+
+    case ${exit_code} in
+        0)
+            # Success
+            if [[ "${result}" =~ ^VERIFIED: ]] || [[ "${result}" =~ ^SIGNED: ]]; then
+                return 0
+            fi
+            echo "Unexpected response: ${result}" >&2
+            return 1
+            ;;
+        1)
+            # Auth failed/canceled
+            return 1
+            ;;
+        2)
+            # Not available
+            return 2
+            ;;
+        *)
+            echo "Bridge error (exit ${exit_code}): ${result}" >&2
+            return 1
+            ;;
+    esac
+}
+
+# Check if Windows Hello is enrolled
+superadmin_is_hello_enrolled() {
+    [[ -f "${SUPERADMIN_HELLO_PUBKEY_FILE}" ]]
 }
 
 # ============================================================================
@@ -108,11 +286,15 @@ superadmin_has_biometric() {
         fi
     fi
 
-    # Check for Windows Hello (WSL - limited support)
+    # Check for Windows Hello via bridge (WSL2)
     if [[ -f /proc/sys/fs/binfmt_misc/WSLInterop ]]; then
-        # WSL detected - Windows Hello might be available via PowerShell
-        # For now, return false - requires additional setup
-        return 1
+        # WSL2 detected - check for Windows Hello bridge
+        if _superadmin_has_hello_bridge; then
+            # Check if Windows Hello is available
+            if _superadmin_check_hello_available; then
+                return 0
+            fi
+        fi
     fi
 
     return 1
@@ -137,13 +319,15 @@ superadmin_check_fingerprint() {
 
     # Linux: Use fprintd
     if command -v fprintd-verify &>/dev/null; then
-        echo "Place your finger on the reader..." > /dev/tty 2>/dev/null || true
+        if fprintd-list "$(whoami)" 2>/dev/null | grep -q "finger"; then
+            echo "Place your finger on the reader..." > /dev/tty 2>/dev/null || true
 
-        # fprintd-verify returns 0 on success
-        if fprintd-verify 2>/dev/null; then
-            return 0
-        else
-            return 1
+            # fprintd-verify returns 0 on success
+            if fprintd-verify 2>/dev/null; then
+                return 0
+            else
+                return 1
+            fi
         fi
     fi
 
@@ -154,6 +338,19 @@ superadmin_check_fingerprint() {
             return 0
         else
             return 1
+        fi
+    fi
+
+    # WSL2: Windows Hello via bridge
+    if [[ -f /proc/sys/fs/binfmt_misc/WSLInterop ]]; then
+        if _superadmin_has_hello_bridge && superadmin_is_hello_enrolled; then
+            # Use challenge-response authentication
+            _superadmin_authenticate_hello
+            return $?
+        elif _superadmin_has_hello_bridge; then
+            # Bridge available but not enrolled
+            echo "Windows Hello not enrolled. Run 'wow superadmin setup --hello' first." >&2
+            return 2
         fi
     fi
 
@@ -521,6 +718,13 @@ superadmin_activate() {
         session_track_event "superadmin_activated" "SuperAdmin mode activated (max: ${SUPERADMIN_MAX_DURATION}s)"
     fi
 
+    # HYBRID MODE: SuperAdmin also grants bypass capabilities
+    # If user passed the harder auth (fingerprint), they've implicitly passed the easier one
+    if type bypass_activate &>/dev/null; then
+        bypass_activate >/dev/null 2>&1 || true
+        wow_debug "Hybrid mode: Bypass also activated" 2>/dev/null || true
+    fi
+
     wow_info "SuperAdmin mode activated (expires in $((SUPERADMIN_MAX_DURATION / 60)) minutes)" 2>/dev/null || true
     return 0
 }
@@ -529,6 +733,12 @@ superadmin_deactivate() {
     rm -f "${SUPERADMIN_TOKEN_FILE}" 2>/dev/null
     rm -f "${SUPERADMIN_ACTIVITY_FILE}" 2>/dev/null
     rm -f "${SUPERADMIN_DATA_DIR}/.ephemeral_secret" 2>/dev/null
+
+    # HYBRID MODE: Also deactivate bypass when SuperAdmin locks
+    if type bypass_deactivate &>/dev/null; then
+        bypass_deactivate >/dev/null 2>&1 || true
+        wow_debug "Hybrid mode: Bypass also deactivated" 2>/dev/null || true
+    fi
 
     if type session_track_event &>/dev/null; then
         session_track_event "superadmin_deactivated" "SuperAdmin mode deactivated"
@@ -629,7 +839,7 @@ superadmin_is_configured() {
 }
 
 # Check if SuperAdmin can unlock a specific operation
-# (Returns false for CRITICAL tier - those are never unlockable)
+# (Returns false for CRITICAL/Nuclear tier - those are never unlockable)
 superadmin_can_unlock() {
     local operation="$1"
 
@@ -639,7 +849,14 @@ superadmin_can_unlock() {
         source "${policies_file}" 2>/dev/null || true
     fi
 
-    # CRITICAL tier cannot be unlocked by anyone
+    # Nuclear patterns cannot be unlocked by anyone
+    if type zone_is_nuclear &>/dev/null; then
+        if zone_is_nuclear "${operation}"; then
+            return 1  # Cannot unlock
+        fi
+    fi
+
+    # CRITICAL tier (legacy) cannot be unlocked by anyone
     if type policy_check_critical &>/dev/null; then
         if policy_check_critical "${operation}"; then
             return 1  # Cannot unlock
@@ -647,6 +864,58 @@ superadmin_can_unlock() {
     fi
 
     return 0  # Can unlock
+}
+
+# ============================================================================
+# v8.0: Zone Awareness
+# SuperAdmin (Tier 2) unlocks ALL zones except Nuclear (Tier 3)
+# ============================================================================
+
+# Check if SuperAdmin mode allows a specific zone
+# Returns: 0=allowed, 1=not allowed (Nuclear only)
+superadmin_allows_zone() {
+    local zone="$1"
+
+    # SuperAdmin allows ALL zones (it's the highest non-nuclear tier)
+    # This includes: DEVELOPMENT, CONFIG, SENSITIVE, SYSTEM, WOW_SELF, GENERAL
+    case "${zone}" in
+        "NUCLEAR")
+            # Nuclear operations are never allowed
+            return 1
+            ;;
+        *)
+            # All other zones allowed
+            return 0
+            ;;
+    esac
+}
+
+# Check if SuperAdmin mode allows operations on a path
+# Returns: 0=allowed, 1=not allowed (only if Nuclear)
+superadmin_allows_path() {
+    local path="$1"
+    local zone
+
+    # Classify the path into a zone
+    if type zone_classify_path &>/dev/null; then
+        zone=$(zone_classify_path "${path}")
+    else
+        # Fallback: assume allowed (SuperAdmin is very permissive)
+        zone="UNKNOWN"
+    fi
+
+    superadmin_allows_zone "${zone}"
+}
+
+# Get allowed zones for SuperAdmin mode (for display)
+superadmin_get_allowed_zones() {
+    echo "All zones except Nuclear:"
+    echo "  - DEVELOPMENT (~/Projects/*)"
+    echo "  - CONFIG (~/.config/*, ~/.claude/*)"
+    echo "  - SENSITIVE (~/.ssh/*, ~/.aws/*)"
+    echo "  - SYSTEM (/etc/*, /bin/*, /usr/*)"
+    echo "  - WOW_SELF (WoW handlers, hooks, security)"
+    echo "  - GENERAL (no restrictions)"
 }
 
 # ============================================================================

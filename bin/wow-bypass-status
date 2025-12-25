@@ -151,7 +151,7 @@ case "${status}" in
             echo "  ${C_DIM}Auto-expires in ~${mins} minutes${C_RESET}"
         fi
         echo ""
-        echo "  ${C_DIM}Run${C_RESET} ${C_CYAN}wow-protect${C_RESET} ${C_DIM}to restore security.${C_RESET}"
+        echo "  ${C_DIM}Run${C_RESET} ${C_CYAN}wow protect${C_RESET} ${C_DIM}to restore security.${C_RESET}"
         echo ""
         exit 1
         ;;

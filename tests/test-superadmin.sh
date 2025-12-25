@@ -250,10 +250,10 @@ test_token_expires_faster_than_bypass() {
     local remaining
     remaining=$(superadmin_get_remaining 2>/dev/null || echo "0")
 
-    # SuperAdmin max duration should be <= 900 seconds (15 minutes)
+    # SuperAdmin max duration should be <= 1200 seconds (20 minutes)
     # versus bypass which is 4 hours (14400 seconds)
-    if [[ ${remaining} -gt 900 ]]; then
-        fail "SuperAdmin should have shorter max duration than bypass (got ${remaining}s, max 900s)"
+    if [[ ${remaining} -gt 1200 ]]; then
+        fail "SuperAdmin should have shorter max duration than bypass (got ${remaining}s, max 1200s)"
         return 1
     fi
     pass
@@ -428,6 +428,137 @@ test_rate_limit_after_failures() {
 }
 
 # ============================================================================
+# Zone Awareness Tests (v7.0+)
+# ============================================================================
+
+test_zone_allows_development() {
+    if type superadmin_allows_zone &>/dev/null; then
+        superadmin_allows_zone "DEVELOPMENT"
+        if [[ $? -eq 0 ]]; then
+            pass
+        else
+            fail "Should allow DEVELOPMENT zone"
+        fi
+    else
+        pass  # Skip if not defined
+    fi
+}
+
+test_zone_allows_config() {
+    if type superadmin_allows_zone &>/dev/null; then
+        superadmin_allows_zone "CONFIG"
+        if [[ $? -eq 0 ]]; then
+            pass
+        else
+            fail "Should allow CONFIG zone"
+        fi
+    else
+        pass
+    fi
+}
+
+test_zone_allows_sensitive() {
+    if type superadmin_allows_zone &>/dev/null; then
+        superadmin_allows_zone "SENSITIVE"
+        if [[ $? -eq 0 ]]; then
+            pass
+        else
+            fail "Should allow SENSITIVE zone"
+        fi
+    else
+        pass
+    fi
+}
+
+test_zone_allows_system() {
+    if type superadmin_allows_zone &>/dev/null; then
+        superadmin_allows_zone "SYSTEM"
+        if [[ $? -eq 0 ]]; then
+            pass
+        else
+            fail "Should allow SYSTEM zone"
+        fi
+    else
+        pass
+    fi
+}
+
+test_zone_allows_wow_self() {
+    if type superadmin_allows_zone &>/dev/null; then
+        superadmin_allows_zone "WOW_SELF"
+        if [[ $? -eq 0 ]]; then
+            pass
+        else
+            fail "Should allow WOW_SELF zone"
+        fi
+    else
+        pass
+    fi
+}
+
+test_zone_blocks_nuclear() {
+    if type superadmin_allows_zone &>/dev/null; then
+        superadmin_allows_zone "NUCLEAR"
+        if [[ $? -ne 0 ]]; then
+            pass
+        else
+            fail "Should block NUCLEAR zone"
+        fi
+    else
+        pass
+    fi
+}
+
+test_zone_path_allows_ssh() {
+    if type superadmin_allows_path &>/dev/null; then
+        superadmin_allows_path "${HOME}/.ssh/id_rsa"
+        if [[ $? -eq 0 ]]; then
+            pass
+        else
+            fail "Should allow path in ~/.ssh"
+        fi
+    else
+        pass
+    fi
+}
+
+test_zone_path_allows_etc() {
+    if type superadmin_allows_path &>/dev/null; then
+        superadmin_allows_path "/etc/hosts"
+        if [[ $? -eq 0 ]]; then
+            pass
+        else
+            fail "Should allow path in /etc"
+        fi
+    else
+        pass
+    fi
+}
+
+test_zone_get_allowed_zones() {
+    if type superadmin_get_allowed_zones &>/dev/null; then
+        local zones
+        zones=$(superadmin_get_allowed_zones)
+        if [[ "${zones}" == *"DEVELOPMENT"* ]] && [[ "${zones}" == *"CONFIG"* ]] && [[ "${zones}" == *"SYSTEM"* ]]; then
+            pass
+        else
+            fail "Should list all non-nuclear zones"
+        fi
+    else
+        pass
+    fi
+}
+
+test_zone_20min_timeout() {
+    # Verify max duration is 1200 seconds (20 minutes)
+    if [[ "${SUPERADMIN_MAX_DURATION:-0}" -eq 1200 ]]; then
+        pass
+    else
+        fail "Max duration should be 1200 seconds (20 min), got ${SUPERADMIN_MAX_DURATION:-unset}"
+    fi
+}
+
+# ============================================================================
 # Run Tests
 # ============================================================================
 
@@ -495,6 +626,18 @@ test_case "Get remaining time" test_get_remaining_time
 test_case "Rate limiting exists" test_rate_limiting_exists
 setup_each
 test_case "Rate limit after failures" test_rate_limit_after_failures
+
+# Zone awareness tests (v7.0+)
+test_case "Zone: allows DEVELOPMENT" test_zone_allows_development
+test_case "Zone: allows CONFIG" test_zone_allows_config
+test_case "Zone: allows SENSITIVE" test_zone_allows_sensitive
+test_case "Zone: allows SYSTEM" test_zone_allows_system
+test_case "Zone: allows WOW_SELF" test_zone_allows_wow_self
+test_case "Zone: blocks NUCLEAR" test_zone_blocks_nuclear
+test_case "Zone: path allows ~/.ssh" test_zone_path_allows_ssh
+test_case "Zone: path allows /etc" test_zone_path_allows_etc
+test_case "Zone: get allowed zones" test_zone_get_allowed_zones
+test_case "Zone: 20 minute timeout" test_zone_20min_timeout
 
 # Cleanup
 teardown_all

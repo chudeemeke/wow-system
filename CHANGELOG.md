@@ -5,7 +5,126 @@ All notable changes to WoW System (Ways of Working Enforcement) will be document
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [7.0.0] - 2025-12-25
+
+### Added - 3-Tier Filesystem-Zone Security System
+
+**Complete redesign from operation-pattern-based to filesystem-zone-based security**
+
+This release introduces a fundamental architectural change to how WoW classifies and protects operations. Instead of blocking based on command patterns, the system now classifies operations by filesystem zone and requires appropriate authentication tier.
+
+#### Filesystem Zones
+
+| Zone | Paths | Tier Required |
+|------|-------|---------------|
+| **DEVELOPMENT** | `~/Projects/*` | Tier 1 (Bypass) |
+| **CONFIG** | `~/.config/*`, `~/.claude/*` | Tier 2 (SuperAdmin) |
+| **SENSITIVE** | `~/.ssh/*`, `~/.aws/*`, `~/.gnupg/*` | Tier 2 (SuperAdmin) |
+| **SYSTEM** | `/etc/*`, `/bin/*`, `/usr/*`, `/boot/*` | Tier 2 (SuperAdmin) |
+| **WOW_SELF** | WoW handlers, hooks, security files | Tier 2 (SuperAdmin) |
+| **GENERAL** | All other paths | Tier 0 (No auth) |
+| **NUCLEAR** | Destructive operations | Tier 3 (Never unlockable) |
+
+#### Authentication Tiers
+
+- **Tier 0 (Normal)**: No authentication required - general files
+- **Tier 1 (Bypass)**: Passphrase authentication
+  - Unlocks: DEVELOPMENT zone (`~/Projects/*`) only
+  - Timeout: 4 hours max / 30 minutes inactivity
+  - Rate limit: 50 operations per minute
+  - Command: `wow bypass`
+- **Tier 2 (SuperAdmin)**: Biometric authentication (fingerprint/Windows Hello)
+  - Unlocks: All zones except NUCLEAR
+  - Timeout: 20 minutes max / 5 minutes inactivity
+  - Progressive disclosure: Auto-grants Tier 1 capabilities
+  - Command: `wow superadmin unlock`
+- **Tier 3 (Nuclear)**: Never unlockable
+  - Blocked: `rm -rf /`, fork bombs, `dd if=/dev/zero of=/dev/sda`
+  - Rationale: No legitimate use case via AI; do manually if truly needed
+
+#### Exit Code Mapping
+
+| Code | Meaning | User Action |
+|------|---------|-------------|
+| 0 | ALLOW | None |
+| 1 | WARN | Logged but allowed |
+| 2 | TIER_1_BLOCKED | Run `wow bypass` |
+| 3 | TIER_2_BLOCKED | Run `wow superadmin unlock` |
+| 4 | NUCLEAR_BLOCKED | Cannot unlock; do manually |
+
+#### New Files
+
+- **`src/security/zones/zone-definitions.sh`** (200 LOC)
+  - Zone constants (DEVELOPMENT, CONFIG, SENSITIVE, SYSTEM, WOW_SELF, GENERAL, NUCLEAR)
+  - Tier constants (TIER_NONE, TIER_BYPASS, TIER_SUPERADMIN, TIER_NUCLEAR)
+  - Path patterns for zone classification
+  - Nuclear operation patterns (always blocked)
+
+- **`src/security/zones/zone-validator.sh`** (300 LOC)
+  - `zone_classify_path()`: Determines zone from file path
+  - `zone_get_required_tier()`: Returns minimum tier for zone
+  - `zone_is_nuclear()`: Checks if operation is nuclear
+  - `zone_check_authorization()`: Validates tier against zone
+  - `zone_get_exit_code()`: Returns appropriate exit code
+
+- **`tests/test-zone-validator.sh`** (42 tests, 100% passing)
+  - Zone classification tests (18)
+  - Tier requirement tests (8)
+  - Nuclear detection tests (6)
+  - Authorization tests (10)
+
+#### Modified Files
+
+- **`src/handlers/handler-router.sh`** (v8.0.0)
+  - Zone-based routing after superadmin check
+  - Rate limiting for Tier 1 operations
+  - Exit code 2/3/4 based on required tier
+
+- **`src/security/bypass-core.sh`**
+  - `bypass_allows_zone()`: Returns 0 for DEVELOPMENT/GENERAL
+  - `bypass_allows_path()`: Classifies path then checks zone
+  - `bypass_get_allowed_zones()`: Returns list for display
+
+- **`src/security/superadmin/superadmin-core.sh`**
+  - Updated timeout: 15 min → 20 min (1200 seconds)
+  - `superadmin_allows_zone()`: Returns 0 for all except NUCLEAR
+  - `superadmin_allows_path()`: Classifies path then checks zone
+  - `superadmin_get_allowed_zones()`: Returns list for display
+
+- **`bin/wow-bypass`**
+  - Help text shows Tier 1, zone info, rate limiting
+  - Success message shows "Bypass Active (Tier 1)"
+  - Lists zones that are/aren't unlocked
+
+- **`bin/wow-superadmin`**
+  - Help text shows Tier 2, all unlockable zones
+  - Updated timeout from 15 to 20 minutes
+  - Unlock success shows all zones listed
+
+- **`tests/test-bypass-core.sh`** (81 tests, +10 zone tests)
+  - Zone awareness tests (10 new tests)
+
+- **`tests/test-superadmin.sh`** (37 tests, +10 zone tests)
+  - Zone awareness tests (10 new tests)
+  - Updated token expiry test for 20-minute timeout
+
+#### Design Principles
+
+- **Filesystem-First**: Security based on where files are, not command patterns
+- **Progressive Disclosure**: SuperAdmin is superset of Bypass
+- **Defense in Depth**: Multiple layers (zone + tier + rate limit + nuclear)
+- **Clear Mental Model**: Zones map to intuitive security boundaries
+- **Rate Limiting**: Prevents runaway operations in Tier 1
+
+#### Benefits
+
+1. **Bypass is safer**: Scoped to `~/Projects/*` only
+2. **SuperAdmin is more capable**: Can modify WoW itself
+3. **Rate limiting**: Catches runaway operations
+4. **Clearer model**: Zones are intuitive (my projects vs system files)
+5. **Better UX**: Exit codes tell user exactly what auth is needed
+
+---
 
 ### Added - WoW Security v7.0 (Phase 1)
 
@@ -295,6 +414,7 @@ Each detection assigns a confidence score based on the evasion technique severit
 - **Primary: Fingerprint Authentication**
   - Linux: Uses `fprintd-verify` (Fingerprint daemon)
   - macOS: Uses Touch ID via security framework
+  - **WSL2: Uses Windows Hello via custom bridge** (fingerprint/face/PIN)
   - Automatic detection of biometric hardware
 
 - **Fallback: Strong Passphrase**
@@ -338,6 +458,12 @@ Each detection assigns a confidence score based on the evasion technique severit
   - Passphrase confirmation
   - Secure hash storage
 
+- **`wow superadmin setup --hello`** - Enroll Windows Hello (WSL2)
+  - Checks bridge installation
+  - Verifies Windows Hello availability
+  - Creates TPM-backed key pair
+  - Stores public key for signature verification
+
 #### Security Tier Integration
 
 - **SUPERADMIN tier (Exit 4)** operations require fingerprint
@@ -353,10 +479,20 @@ Each detection assigns a confidence score based on the evasion technique severit
   - Activity tracking and expiry logic
   - Rate limiting with exponential backoff
 
-- **`bin/wow-superadmin`** (345 LOC)
+- **`bin/wow-superadmin`** (420 LOC)
   - CLI command with unlock/lock/status/setup
   - Color-coded terminal output
   - Help documentation
+  - **NEW: `setup --hello` for Windows Hello enrollment**
+
+- **Windows Hello Bridge** (`tools/windows-hello-bridge/`)
+  - Cryptographically-secure bridge for WSL2 Windows Hello authentication
+  - C# implementation using KeyCredentialManager API
+  - TPM-backed asymmetric keys (private key never leaves Windows)
+  - Challenge-response authentication prevents exe replacement attacks
+  - Self-contained .NET 8 executable (~15MB)
+  - Installation script for Windows (scripts/install.ps1)
+  - Comprehensive documentation (DESIGN.md, README.md)
 
 - **`tests/test-superadmin.sh`** (27 tests, 100% passing)
   - Function existence tests (6)
@@ -374,6 +510,21 @@ Each detection assigns a confidence score based on the evasion technique severit
 - **`bin/wow`**: Added `superadmin|sa` command routing
 - **`src/handlers/handler-router.sh`**: Sources superadmin-core.sh for status checks
 
+#### Hybrid Mode (Progressive Disclosure)
+
+SuperAdmin unlock automatically grants Bypass capabilities:
+- **Rationale**: If you passed the harder auth (fingerprint + 12-char), you've passed the easier one
+- **UX Benefit**: Single unlock command for full access
+- **Still Separate**: `wow bypass` remains available for lighter protection disabling
+- **Lock Together**: `wow superadmin lock` revokes both
+
+```
+wow superadmin unlock  →  Both tiers unlocked (superset)
+wow bypass             →  Only Bypass tier (subset)
+wow superadmin lock    →  Both locked
+wow protect            →  Only Bypass locked
+```
+
 #### Design Principles
 
 - **Defense in Depth**: Biometric + passphrase + HMAC + expiry
@@ -381,6 +532,7 @@ Each detection assigns a confidence score based on the evasion technique severit
 - **Fail-Secure**: Errors keep protection ON
 - **Shorter Timeouts**: More restrictive than bypass (safety)
 - **Audit Trail**: All SuperAdmin events tracked in session metrics
+- **Progressive Disclosure**: SuperAdmin is superset of Bypass
 
 ---
 

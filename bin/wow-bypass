@@ -38,7 +38,7 @@ case "${1:-}" in
         cat << EOF
 
   WoW
-  Bypass Activation
+  Bypass Activation (Tier 1)
 
   ────────────────────────────────────────
 
@@ -46,8 +46,22 @@ case "${1:-}" in
     wow bypass
 
   Description
-    Temporarily disable WoW protection to allow
-    operations that would normally be blocked.
+    Temporarily unlock Development zone (~/Projects/*)
+    for operations that would normally be blocked.
+
+    Unlocks:
+    • DEVELOPMENT zone (~/Projects/*)
+    • GENERAL zone (no restrictions)
+
+    Does NOT unlock:
+    • CONFIG zone (~/.config/*, ~/.claude/*)
+    • SENSITIVE zone (~/.ssh/*, ~/.aws/*)
+    • SYSTEM zone (/etc/*, /bin/*, /usr/*)
+    • WOW_SELF zone (WoW handlers, hooks)
+    • NUCLEAR operations (rm -rf /, fork bombs)
+
+    For config/sensitive/system files, use:
+      wow superadmin unlock
 
     Requires:
     • Interactive terminal (TTY)
@@ -57,16 +71,18 @@ case "${1:-}" in
   Safety
     • Auto-expires after 4 hours max
     • Auto-locks after 30 min inactivity
-    • Catastrophic operations always blocked
+    • Rate limited: 50 operations per minute
+    • Nuclear operations always blocked
 
   Options
     -h, --help      Show this help
     -v, --version   Show version
 
   See Also
-    wow protect    Re-enable protection
-    wow status     Check current state
-    wow setup      Configure passphrase
+    wow protect          Re-enable protection
+    wow status           Check current state
+    wow setup            Configure passphrase
+    wow superadmin       Unlock all zones (Tier 2)
 
 EOF
         exit 0
@@ -163,7 +179,7 @@ if bypass_is_active; then
     echo "  ${C_GREEN}●${C_RESET} Already active"
     echo ""
     echo "  ${C_DIM}Bypass mode is currently enabled.${C_RESET}"
-    echo "  ${C_DIM}Run${C_RESET} ${C_CYAN}wow-protect${C_RESET} ${C_DIM}to re-enable protection.${C_RESET}"
+    echo "  ${C_DIM}Run${C_RESET} ${C_CYAN}wow protect${C_RESET} ${C_DIM}to re-enable protection.${C_RESET}"
     echo ""
     exit 0
 fi
@@ -228,8 +244,11 @@ echo " ${C_GREEN}✓${C_RESET}"
 echo ""
 echo "  ${C_DIM}────────────────────────────────────────${C_RESET}"
 echo ""
-echo "  ${C_GREEN}●${C_RESET} ${C_BOLD}Bypass Active${C_RESET}"
+echo "  ${C_GREEN}●${C_RESET} ${C_BOLD}Bypass Active (Tier 1)${C_RESET}"
 echo ""
-echo "  ${C_DIM}Protection is disabled. Catastrophic operations${C_RESET}"
-echo "  ${C_DIM}remain blocked. Run${C_RESET} ${C_CYAN}wow-protect${C_RESET} ${C_DIM}when done.${C_RESET}"
+echo "  ${C_DIM}Unlocked: DEVELOPMENT zone (~/Projects/*)${C_RESET}"
+echo ""
+echo "  ${C_DIM}Config, sensitive, and system files still protected.${C_RESET}"
+echo "  ${C_DIM}Run${C_RESET} ${C_CYAN}wow superadmin unlock${C_RESET} ${C_DIM}for those.${C_RESET}"
+echo "  ${C_DIM}Run${C_RESET} ${C_CYAN}wow protect${C_RESET} ${C_DIM}when done.${C_RESET}"
 echo ""

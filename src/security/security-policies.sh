@@ -7,24 +7,41 @@
 # - Open/Closed: Add patterns without modifying handlers
 # - Dependency Inversion: Handlers depend on this abstraction
 #
-# Pattern Categories:
-# - TIER_CRITICAL: Never allowed, even with SuperAdmin (exit 3)
-# - TIER_SUPERADMIN: Blocked, unlockable with SuperAdmin only (exit 4)
-# - TIER_HIGH: Blocked by default, bypassable with wow bypass (exit 2)
-# - TIER_MEDIUM: Warned, tracked, not blocked (exit 1)
+# v8.0: 3-Tier Filesystem-Zone Security Model
+# - Tier 0 (Normal): No auth required - general files
+# - Tier 1 (Bypass): Passphrase auth - ~/Projects/* only
+# - Tier 2 (SuperAdmin): Biometric auth - config, sensitive, system, WoW files
+# - Tier 3 (Nuclear): Never unlockable - destructive operations
 #
-# Exit Code Constants:
-readonly EXIT_ALLOW=0
-readonly EXIT_WARN=1
-readonly EXIT_BLOCK=2
-readonly EXIT_CRITICAL=3
-readonly EXIT_SUPERADMIN=4
+# Exit Code Constants (zone-aligned v8.0):
+# The new 3-tier model uses these exit codes:
+#   0 = ALLOW (no auth required)
+#   1 = WARN (non-blocking warning)
+#   2 = TIER1_BLOCKED (run 'wow bypass')
+#   3 = TIER2_BLOCKED (run 'wow superadmin unlock')
+#   4 = NUCLEAR_BLOCKED (cannot be unlocked)
+#
+# Legacy exit codes are maintained for backward compatibility:
+readonly EXIT_ALLOW=0              # Operation allowed
+readonly EXIT_WARN=1               # Warning (non-blocking)
+readonly EXIT_TIER1_BLOCKED=2      # v8.0: Tier 1 (Bypass) required
+readonly EXIT_TIER2_BLOCKED=3      # v8.0: Tier 2 (SuperAdmin) required
+readonly EXIT_NUCLEAR_BLOCKED=4    # v8.0: Nuclear - never unlockable
+# Legacy aliases (for backward compatibility with existing handlers):
+readonly EXIT_BLOCK=2              # Legacy: maps to EXIT_TIER1_BLOCKED
+readonly EXIT_CRITICAL=3           # Legacy: maps to EXIT_TIER2_BLOCKED (was CRITICAL)
+readonly EXIT_SUPERADMIN=4         # Legacy: maps to EXIT_NUCLEAR_BLOCKED
 
 # Prevent double-sourcing
 if [[ -n "${WOW_SECURITY_POLICIES_LOADED:-}" ]]; then
     return 0
 fi
 readonly WOW_SECURITY_POLICIES_LOADED=1
+
+# Source zone system (v8.0)
+_POLICY_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "${_POLICY_DIR}/zones/zone-definitions.sh" 2>/dev/null || true
+source "${_POLICY_DIR}/zones/zone-validator.sh" 2>/dev/null || true
 
 # ============================================================================
 # TIER CRITICAL: Never Allowed (cannot be bypassed)
@@ -299,6 +316,132 @@ policy_is_superadmin_unlockable() {
 }
 
 # ============================================================================
+# v8.0: Zone-Based Policy Interface
+# ============================================================================
+
+# Check operation using zone-based model
+# Parameters:
+#   path: File path being accessed
+#   operation: Full operation string (for nuclear check)
+# Returns:
+#   0 = Allowed
+#   1 = Warn (non-blocking)
+#   2 = Tier 1 (Bypass) required
+#   3 = Tier 2 (SuperAdmin) required
+#   4 = Nuclear blocked (never unlockable)
+policy_check_zone() {
+    local path="$1"
+    local operation="${2:-${path}}"
+
+    # Check nuclear patterns FIRST (never unlockable)
+    if type zone_is_nuclear &>/dev/null && zone_is_nuclear "${operation}"; then
+        return "${EXIT_NUCLEAR_BLOCKED}"
+    fi
+
+    # Also check legacy critical patterns
+    if policy_check_critical "${operation}"; then
+        return "${EXIT_NUCLEAR_BLOCKED}"
+    fi
+
+    # Get current auth level
+    local auth_level=0
+    if type zone_get_current_auth_level &>/dev/null; then
+        auth_level=$(zone_get_current_auth_level)
+    else
+        # Fallback: check bypass/superadmin directly
+        if type superadmin_is_active &>/dev/null && superadmin_is_active; then
+            auth_level=2
+        elif type bypass_is_active &>/dev/null && bypass_is_active; then
+            auth_level=1
+        fi
+    fi
+
+    # Check zone-based authorization
+    if type zone_check_operation &>/dev/null; then
+        zone_check_operation "${path}" "${operation}" "${auth_level}"
+        return $?
+    fi
+
+    # Fallback to legacy pattern-based checks
+    if policy_check_superadmin "${path}"; then
+        if [[ ${auth_level} -ge 2 ]]; then
+            return "${EXIT_ALLOW}"
+        fi
+        return "${EXIT_TIER2_BLOCKED}"
+    fi
+
+    if policy_check_high "${path}" "path"; then
+        if [[ ${auth_level} -ge 1 ]]; then
+            return "${EXIT_ALLOW}"
+        fi
+        return "${EXIT_TIER1_BLOCKED}"
+    fi
+
+    return "${EXIT_ALLOW}"
+}
+
+# Get zone for a path (convenience wrapper)
+policy_get_zone() {
+    local path="$1"
+
+    if type zone_classify_path &>/dev/null; then
+        zone_classify_path "${path}"
+    else
+        echo "UNKNOWN"
+    fi
+}
+
+# Get required tier for a path
+policy_get_required_tier() {
+    local path="$1"
+
+    if type zone_classify_path &>/dev/null && type zone_get_required_tier &>/dev/null; then
+        local zone
+        zone=$(zone_classify_path "${path}")
+        zone_get_required_tier "${zone}"
+    else
+        # Fallback: use pattern-based detection
+        if policy_check_superadmin "${path}"; then
+            echo "2"
+        elif policy_check_high "${path}" "path"; then
+            echo "1"
+        else
+            echo "0"
+        fi
+    fi
+}
+
+# Get user-friendly action message for blocked operation
+policy_get_action_message() {
+    local exit_code="$1"
+
+    case "${exit_code}" in
+        "${EXIT_TIER1_BLOCKED}"|"${EXIT_BLOCK}")
+            echo "Run 'wow bypass' to temporarily unlock this operation"
+            ;;
+        "${EXIT_TIER2_BLOCKED}"|"${EXIT_SUPERADMIN}")
+            echo "Run 'wow superadmin unlock' to temporarily unlock this operation"
+            ;;
+        "${EXIT_NUCLEAR_BLOCKED}"|"${EXIT_CRITICAL}")
+            echo "This operation cannot be unlocked. Perform manually outside Claude Code if truly needed."
+            ;;
+        *)
+            echo ""
+            ;;
+    esac
+}
+
+# Check rate limit for Tier 1 operations
+# Returns: 0 if within limit, 1 if rate limited
+policy_check_rate_limit() {
+    if type zone_check_rate_limit &>/dev/null; then
+        zone_check_rate_limit
+    else
+        return 0  # No rate limiting if zone system not available
+    fi
+}
+
+# ============================================================================
 # Self-test
 # ============================================================================
 
@@ -321,6 +464,22 @@ if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
     # Test bypassability
     policy_is_bypassable "curl http://169.254.169.254/" && echo "SSRF bypassable: WRONG" || echo "SSRF not bypassable: correct"
     policy_is_bypassable "/etc/passwd" && echo "Path bypassable: correct" || echo "Path not bypassable: WRONG"
+
+    echo ""
+    echo "v8.0 Zone-Based Tests:"
+
+    # Test zone classification
+    if type zone_classify_path &>/dev/null; then
+        echo "  ~/Projects/test -> $(zone_classify_path "${HOME}/Projects/test")"
+        echo "  ~/.ssh/id_rsa -> $(zone_classify_path "${HOME}/.ssh/id_rsa")"
+        echo "  /etc/passwd -> $(zone_classify_path "/etc/passwd")"
+
+        # Test policy_check_zone
+        result=$(policy_check_zone "${HOME}/Projects/test" "cat file.txt"; echo $?)
+        echo "  policy_check_zone(~/Projects/test) exit: ${result}"
+    else
+        echo "  Zone system not loaded"
+    fi
 
     echo ""
     echo "Self-test complete"

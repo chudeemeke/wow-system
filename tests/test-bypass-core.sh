@@ -1631,6 +1631,163 @@ test_checksum_missing_script() {
 }
 
 # ============================================================================
+# Zone Awareness Tests (v7.0+)
+# ============================================================================
+
+test_zone_allows_development() {
+    setup_test_env
+    require_module || return 1
+
+    # bypass_allows_zone should allow DEVELOPMENT zone
+    if type bypass_allows_zone &>/dev/null; then
+        bypass_allows_zone "DEVELOPMENT"
+        assert_equals 0 $? "Should allow DEVELOPMENT zone"
+    else
+        echo "SKIP: bypass_allows_zone not defined"
+        return 0
+    fi
+
+    teardown_test_env
+}
+
+test_zone_allows_general() {
+    setup_test_env
+    require_module || return 1
+
+    if type bypass_allows_zone &>/dev/null; then
+        bypass_allows_zone "GENERAL"
+        assert_equals 0 $? "Should allow GENERAL zone"
+    else
+        echo "SKIP: bypass_allows_zone not defined"
+        return 0
+    fi
+
+    teardown_test_env
+}
+
+test_zone_blocks_config() {
+    setup_test_env
+    require_module || return 1
+
+    if type bypass_allows_zone &>/dev/null; then
+        bypass_allows_zone "CONFIG"
+        assert_equals 1 $? "Should block CONFIG zone"
+    else
+        echo "SKIP: bypass_allows_zone not defined"
+        return 0
+    fi
+
+    teardown_test_env
+}
+
+test_zone_blocks_sensitive() {
+    setup_test_env
+    require_module || return 1
+
+    if type bypass_allows_zone &>/dev/null; then
+        bypass_allows_zone "SENSITIVE"
+        assert_equals 1 $? "Should block SENSITIVE zone"
+    else
+        echo "SKIP: bypass_allows_zone not defined"
+        return 0
+    fi
+
+    teardown_test_env
+}
+
+test_zone_blocks_system() {
+    setup_test_env
+    require_module || return 1
+
+    if type bypass_allows_zone &>/dev/null; then
+        bypass_allows_zone "SYSTEM"
+        assert_equals 1 $? "Should block SYSTEM zone"
+    else
+        echo "SKIP: bypass_allows_zone not defined"
+        return 0
+    fi
+
+    teardown_test_env
+}
+
+test_zone_blocks_wow_self() {
+    setup_test_env
+    require_module || return 1
+
+    if type bypass_allows_zone &>/dev/null; then
+        bypass_allows_zone "WOW_SELF"
+        assert_equals 1 $? "Should block WOW_SELF zone"
+    else
+        echo "SKIP: bypass_allows_zone not defined"
+        return 0
+    fi
+
+    teardown_test_env
+}
+
+test_zone_path_allows_projects() {
+    setup_test_env
+    require_module || return 1
+
+    if type bypass_allows_path &>/dev/null; then
+        bypass_allows_path "${HOME}/Projects/myapp/src/main.ts"
+        assert_equals 0 $? "Should allow path in ~/Projects"
+    else
+        echo "SKIP: bypass_allows_path not defined"
+        return 0
+    fi
+
+    teardown_test_env
+}
+
+test_zone_path_blocks_ssh() {
+    setup_test_env
+    require_module || return 1
+
+    if type bypass_allows_path &>/dev/null; then
+        bypass_allows_path "${HOME}/.ssh/id_rsa"
+        assert_equals 1 $? "Should block path in ~/.ssh"
+    else
+        echo "SKIP: bypass_allows_path not defined"
+        return 0
+    fi
+
+    teardown_test_env
+}
+
+test_zone_path_blocks_etc() {
+    setup_test_env
+    require_module || return 1
+
+    if type bypass_allows_path &>/dev/null; then
+        bypass_allows_path "/etc/passwd"
+        assert_equals 1 $? "Should block path in /etc"
+    else
+        echo "SKIP: bypass_allows_path not defined"
+        return 0
+    fi
+
+    teardown_test_env
+}
+
+test_zone_get_allowed_zones() {
+    setup_test_env
+    require_module || return 1
+
+    if type bypass_get_allowed_zones &>/dev/null; then
+        local zones
+        zones=$(bypass_get_allowed_zones)
+        assert_contains "${zones}" "DEVELOPMENT" "Should list DEVELOPMENT zone"
+        assert_contains "${zones}" "GENERAL" "Should list GENERAL zone"
+    else
+        echo "SKIP: bypass_get_allowed_zones not defined"
+        return 0
+    fi
+
+    teardown_test_env
+}
+
+# ============================================================================
 # Run Tests
 # ============================================================================
 
@@ -1751,6 +1908,19 @@ test_case "should detect script tampering" test_checksum_detect_tampering
 test_case "should detect checksum file removal" test_checksum_file_removal
 test_case "should set correct checksum permissions" test_checksum_permissions
 test_case "should handle missing script gracefully" test_checksum_missing_script
+
+echo ""
+echo "=== Zone Awareness Tests (10 tests) ==="
+test_case "should allow DEVELOPMENT zone" test_zone_allows_development
+test_case "should allow GENERAL zone" test_zone_allows_general
+test_case "should block CONFIG zone" test_zone_blocks_config
+test_case "should block SENSITIVE zone" test_zone_blocks_sensitive
+test_case "should block SYSTEM zone" test_zone_blocks_system
+test_case "should block WOW_SELF zone" test_zone_blocks_wow_self
+test_case "should allow path in ~/Projects" test_zone_path_allows_projects
+test_case "should block path in ~/.ssh" test_zone_path_blocks_ssh
+test_case "should block path in /etc" test_zone_path_blocks_etc
+test_case "should list allowed zones" test_zone_get_allowed_zones
 
 echo ""
 test_summary

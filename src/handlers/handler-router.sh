@@ -35,11 +35,17 @@ source "${_HANDLER_ROUTER_DIR}/../security/correlator/correlator.sh" 2>/dev/null
 # v7.0: SuperAdmin authentication (biometric unlock)
 source "${_HANDLER_ROUTER_DIR}/../security/superadmin/superadmin-core.sh" 2>/dev/null || true
 
+# v8.0: Zone-based filesystem security
+source "${_HANDLER_ROUTER_DIR}/../security/zones/zone-definitions.sh" 2>/dev/null || true
+source "${_HANDLER_ROUTER_DIR}/../security/zones/zone-validator.sh" 2>/dev/null || true
+
 set -uo pipefail
 
 # ============================================================================
 # Constants
 # ============================================================================
+
+readonly ROUTER_VERSION="8.0.0"
 
 # Handler registry (tool_type => handler_path)
 declare -gA _WOW_HANDLER_REGISTRY
@@ -167,6 +173,84 @@ handler_route() {
                 wow_error "SUPERADMIN REQUIRED: ${reason}"
                 echo "${tool_input}"
                 return 4  # SUPERADMIN-REQUIRED
+            fi
+        fi
+    fi
+
+    # ========================================================================
+    # v8.0: Zone-Based Filesystem Security
+    # Determines zone from path, checks auth level, enforces rate limits
+    # ========================================================================
+    if type zone_classify_path &>/dev/null; then
+        # Extract file path for zone classification
+        local file_path=""
+        if wow_has_jq; then
+            file_path=$(echo "${tool_input}" | jq -r '
+                .file_path // .path // .notebook_path // ""
+            ' 2>/dev/null)
+        else
+            # Fallback: extract file_path or path
+            file_path=$(echo "${tool_input}" | grep -oE '"(file_path|path|notebook_path)"\s*:\s*"[^"]*"' | head -1 | cut -d'"' -f4)
+        fi
+
+        # Only check zone for file-based operations with a path
+        if [[ -n "${file_path}" ]]; then
+            # Classify the path into a zone
+            local zone
+            zone=$(zone_classify_path "${file_path}")
+
+            # Get required tier for this zone
+            local required_tier
+            required_tier=$(zone_get_required_tier "${zone}")
+
+            # Get current auth level (0=none, 1=bypass, 2=superadmin)
+            local auth_level=0
+            if type zone_get_current_auth_level &>/dev/null; then
+                auth_level=$(zone_get_current_auth_level)
+            else
+                # Fallback: check bypass/superadmin directly
+                if type superadmin_is_active &>/dev/null && superadmin_is_active; then
+                    auth_level=2
+                elif type bypass_is_active &>/dev/null && bypass_is_active; then
+                    auth_level=1
+                fi
+            fi
+
+            wow_debug "Zone check: path=${file_path} zone=${zone} required=${required_tier} auth=${auth_level}"
+
+            # Check if auth level is sufficient
+            if [[ ${auth_level} -lt ${required_tier} ]]; then
+                local zone_desc=""
+                if type zone_definition_get_description &>/dev/null; then
+                    zone_desc=$(zone_definition_get_description "${zone}")
+                fi
+
+                # Determine appropriate exit code and message
+                if [[ ${required_tier} -eq ${TIER_SUPERADMIN:-2} ]]; then
+                    wow_error "TIER 2 BLOCKED: ${zone_desc}"
+                    wow_error "Run 'wow superadmin unlock' to temporarily unlock protected files"
+                    echo "${tool_input}"
+                    return 3  # Tier 2 (SuperAdmin) required
+                elif [[ ${required_tier} -eq ${TIER_BYPASS:-1} ]]; then
+                    # Rate limit check for Tier 1 operations
+                    if type zone_check_rate_limit &>/dev/null; then
+                        if ! zone_check_rate_limit; then
+                            wow_error "RATE LIMITED: Too many operations. Wait for rate limit to reset."
+                            echo "${tool_input}"
+                            return 2  # Block until rate limit resets
+                        fi
+                    fi
+
+                    wow_error "TIER 1 BLOCKED: ${zone_desc}"
+                    wow_error "Run 'wow bypass' to temporarily unlock project files"
+                    echo "${tool_input}"
+                    return 2  # Tier 1 (Bypass) required
+                fi
+            fi
+
+            # Auth sufficient - track rate limit for Tier 1 zones
+            if [[ ${required_tier} -eq ${TIER_BYPASS:-1} ]] && type zone_check_rate_limit &>/dev/null; then
+                zone_check_rate_limit >/dev/null 2>&1 || true
             fi
         fi
     fi
