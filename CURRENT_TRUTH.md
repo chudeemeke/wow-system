@@ -1,6 +1,6 @@
 # WoW System - Current Truth
-Generated: 2025-11-29T15:29:29.199Z
-Generation Time: 0.676s
+Generated: 2025-12-25T21:46:43.084Z
+Generation Time: 0.722s
 
 ## ⚠️ Warnings
 - **validation**: Version consistency - Required validation failed
@@ -18,7 +18,9 @@ Generation Time: 0.676s
 #### Version [ESSENTIAL]
 ```bash
 $ grep 'readonly WOW_VERSION=' src/core/utils.sh | cut -d'"' -f2
-6.0.0
+$(tr -d '[:space:]' < 
+$(tr -d '[:space:]' < 
+6.1.1
 ```
 
 #### Description [ESSENTIAL]
@@ -43,7 +45,7 @@ Chude <chude@emeke.org>
 #### Total Modules [ESSENTIAL]
 ```bash
 $ find src -name '*.sh' -type f | wc -l
-42
+54
 ```
 
 #### Core Modules
@@ -87,12 +89,15 @@ scoring
 #### Security Components
 ```bash
 $ ls -1 src/security/*.sh 2>/dev/null | xargs -n1 basename | sed 's/.sh//' || echo 'None'
+bypass-always-block
+bypass-core
 credential-detector
 credential-redactor
 credential-scanner
 domain-lists
 domain-validator
 security-constants
+security-policies
 ```
 
 #### UI Components
@@ -118,8 +123,15 @@ email-sender
 #### CLI Commands
 ```bash
 $ ls -1 bin/* 2>/dev/null | xargs -n1 basename | grep -v '\.sh$' || echo 'None'
+wow
+wow-bypass
+wow-bypass-setup
+wow-bypass-status
 wow-capture
 wow-email-setup
+wow-immutable
+wow-protect
+wow-superadmin
 ```
 
 ### Testing
@@ -127,7 +139,7 @@ wow-email-setup
 #### Total Tests [ESSENTIAL]
 ```bash
 $ find tests -name 'test-*.sh' -type f | wc -l
-37
+45
 ```
 
 #### Test Suites
@@ -135,8 +147,11 @@ $ find tests -name 'test-*.sh' -type f | wc -l
 $ ls -1 tests/test-*.sh | xargs -n1 basename | sed 's/test-//' | sed 's/.sh//'
 analytics-collector
 b-handler.sh
+bypass-always-block
+bypass-core
 capture-engine
 config-loader
+correlator
 di-container
 doc-sync
 domain-lists
@@ -144,12 +159,15 @@ domain-validator
 edit-handler
 email-sender
 event-bus
+exit-codes
 fast-path-validator
 framework
 glob-handler
 grep-handler
 handler-factory
 handler-router-integration
+heuristic-integration
+heuristics
 install-manager
 integration-domain-validation
 notebookedit-handler
@@ -160,6 +178,7 @@ security-edge-cases
 session-manager
 state-manager
 stress-framework
+superadmin
 task-handler
 tool-registry
 tool-tracking-integration
@@ -168,6 +187,7 @@ webfetch-handler
 websearch-handler
 wow-capture-cli
 write-handler
+zone-validator
 ```
 
 #### Test Coverage - Core
@@ -231,37 +251,37 @@ docTruth v1.0.2
 #### Total Lines of Code
 ```bash
 $ find src -name '*.sh' -type f -exec wc -l {} + | tail -1 | awk '{print $1}'
-16346
+21657
 ```
 
 #### Core Module LOC
 ```bash
 $ find src/core -name '*.sh' -type f -exec wc -l {} + | tail -1 | awk '{print $1}'
-3161
+3172
 ```
 
 #### Handler LOC
 ```bash
 $ find src/handlers -name '*.sh' -type f -exec wc -l {} + 2>/dev/null | tail -1 | awk '{print $1}' || echo '0'
-4732
+5005
 ```
 
 #### Test LOC
 ```bash
 $ find tests -name '*.sh' -type f -exec wc -l {} + 2>/dev/null | tail -1 | awk '{print $1}' || echo '0'
-19893
+24531
 ```
 
 #### Public Functions
 ```bash
 $ grep -rh '^[a-z_]*() {' src/ | wc -l
-512
+681
 ```
 
 #### Documentation Files
 ```bash
 $ find . -maxdepth 3 -name '*.md' -type f | grep -v node_modules | wc -l
-55
+56
 ```
 
 ### Configuration
@@ -314,7 +334,8 @@ No (optional)
 
 | Status | Validation | Result | Required |
 |--------|------------|--------|----------|
-| ❌ | Version consistency | ✗ Version mismatch: code=6.0.0, readme= | Yes |
+| ❌ | Version consistency | ✗ Version mismatch: code=$(tr -d '[:space:]' < 
+$( | Yes |
 | ❌ | All handlers have tests | ✗ Handler/test mismatch: 12 handlers, 10 tests | Yes |
 | ❌ | Core modules present | ✗ Missing core modules: file-storage.sh | Yes |
 | ❌ | Hook executable | ✗ Hook not executable | Yes |
@@ -344,9 +365,9 @@ doctruth
 
 | Metric | Value |
 |--------|-------|
-| Hook execution time | 0m0.298s |
-| Total codebase size | 628K |
-| Total test suite size | 716K |
+| Hook execution time | 0m0.339s |
+| Total codebase size | 836K |
+| Total test suite size | 864K |
 
 ## Environment
 
