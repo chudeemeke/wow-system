@@ -34,3 +34,15 @@ node_modules/
 # Build artifacts
 dist/
 build/
+
+# .NET build artifacts
+tools/*/bin/
+tools/*/obj/
+
+# Runtime data (sensitive credentials and state)
+data/bypass/
+data/superadmin/
+data/state/
+data/sessions/
+data/storage/
+data/*.state
