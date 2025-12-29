@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**WoW System v6.1.1** - Ways of Working Enforcement for Claude Code
+**WoW System v7.0.0** - Ways of Working Enforcement for Claude Code
 
 A production-grade defensive security framework that intercepts Claude Code tool calls to prevent dangerous operations, enforce best practices, and maintain behavioral scoring.
 
@@ -100,6 +100,35 @@ The bypass system allows temporarily disabling protection for legitimate operati
 - `wow protect` - Re-enable protection
 - `wow bypass-status` - Check current status
 - `wow setup` - Initial configuration (set passphrase)
+
+## What's New in v7.0.0
+
+### Zone-Based Filesystem Security System
+
+v7.0.0 introduces a fundamental architectural change from operation-pattern-based to filesystem-zone-based security:
+
+**Filesystem Zones:**
+- **DEVELOPMENT** (`~/Projects/*`) - Tier 1 (Bypass)
+- **CONFIG** (`~/.config/*`, `~/.claude/*`) - Tier 2 (SuperAdmin)
+- **SENSITIVE** (`~/.ssh/*`, `~/.aws/*`, `~/.gnupg/*`) - Tier 2 (SuperAdmin)
+- **SYSTEM** (`/etc/*`, `/bin/*`, `/usr/*`) - Tier 2 (SuperAdmin)
+- **WOW_SELF** (WoW handlers, hooks) - Tier 2 (SuperAdmin)
+- **GENERAL** (all other paths) - Tier 0 (No auth)
+- **NUCLEAR** (destructive operations) - Tier 3 (Never unlockable)
+
+**Authentication Tiers:**
+- **Tier 0**: No auth required (general files)
+- **Tier 1 (Bypass)**: Passphrase auth, 4hr/30min timeout, 50 ops/min
+- **Tier 2 (SuperAdmin)**: Biometric auth (Windows Hello/fingerprint), 20min/5min timeout
+- **Tier 3 (Nuclear)**: Never unlockable (do manually if truly needed)
+
+**Exit Code Mapping:**
+- `0` = ALLOW, `1` = WARN, `2` = TIER_1_BLOCKED, `3` = TIER_2_BLOCKED, `4` = NUCLEAR_BLOCKED
+
+**New Files:**
+- `src/security/zones/zone-definitions.sh` - Zone and tier constants
+- `src/security/zones/zone-validator.sh` - Path classification and authorization
+- `tests/test-zone-validator.sh` - 42 zone tests
 
 ## Architecture
 
@@ -454,7 +483,7 @@ Per global CLAUDE.md rules:
 
 **CRITICAL**: This project was rebuilt from v4.1 after v4.0.2 was accidentally deleted on September 30, 2025 via `rm -rf /mnt/c/Users/Destiny/.claude/`. The current architecture (standalone project in /Projects/ with symlink deployment to .claude/) was specifically designed to prevent this from happening again.
 
-See `CONTEXT.md` for complete history: v1.0 → v2.0 → v3.5.0 → v4.0 → v4.0.2 (lost) → v4.1 → v5.0 → v5.0.1 → v5.4.0 → v5.4.1 → v5.4.2 → v6.0.0
+See `CONTEXT.md` for complete history: v1.0 → v2.0 → v3.5.0 → v4.0 → v4.0.2 (lost) → v4.1 → v5.0 → v5.0.1 → v5.4.0 → v5.4.1 → v5.4.2 → v6.0.0 → v6.1.1 → v7.0.0
 
 ## Self-Documentation Paradox
 
