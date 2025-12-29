@@ -1,6 +1,6 @@
 # WoW System - Current Truth
-Generated: 2025-12-28T00:52:27.414Z
-Generation Time: 0.797s
+Generated: 2025-12-29T20:48:00.689Z
+Generation Time: 0.998s
 
 ## ⚠️ Warnings
 - **validation**: Version consistency - Required validation failed
@@ -365,7 +365,7 @@ doctruth
 
 | Metric | Value |
 |--------|-------|
-| Hook execution time | 0m0.384s |
+| Hook execution time | 0m0.356s |
 | Total codebase size | 836K |
 | Total test suite size | 864K |
 
