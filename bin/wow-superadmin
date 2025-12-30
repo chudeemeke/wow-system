@@ -34,10 +34,22 @@ VERSION="$(tr -d '[:space:]' < "${WOW_HOME}/VERSION" 2>/dev/null || echo "7.0.0"
 
 # Source dependencies
 source "${WOW_HOME}/src/core/utils.sh" 2>/dev/null || true
+source "${WOW_HOME}/src/core/duration-parser.sh" 2>/dev/null || true
+source "${WOW_HOME}/src/core/interactive-duration.sh" 2>/dev/null || true
 source "${WOW_HOME}/src/security/superadmin/superadmin-core.sh" 2>/dev/null || {
     echo "Error: Cannot load SuperAdmin module" >&2
     exit 1
 }
+
+# Capture duration argument before option parsing
+DURATION_ARG=""
+for arg in "$@"; do
+    case "${arg}" in
+        -h|--help|help|-v|--version|version|unlock|lock|status|setup) ;;
+        --hello|-hello) ;;
+        *) DURATION_ARG="${arg}" ;;
+    esac
+done
 
 # Disable errexit for CLI (we handle errors manually)
 set +e
@@ -71,15 +83,25 @@ show_help() {
   ${C_DIM}────────────────────────────────────────${C_RESET}
 
   ${C_BOLD}Usage${C_RESET}
-    wow superadmin <command>
+    wow superadmin <command> [duration]
 
   ${C_BOLD}Commands${C_RESET}
-    unlock      Authenticate and unlock SuperAdmin mode
-    lock        Re-lock SuperAdmin mode
-    status      Show current SuperAdmin status
-    setup       Configure fallback passphrase (for systems without fingerprint)
-    setup --hello  Enroll Windows Hello (WSL2 only - fingerprint/face/PIN)
-    help        Show this help message
+    unlock [duration]  Authenticate and unlock SuperAdmin mode
+    lock               Re-lock SuperAdmin mode
+    status             Show current SuperAdmin status
+    setup              Configure fallback passphrase (for systems without fingerprint)
+    setup --hello      Enroll Windows Hello (WSL2 only - fingerprint/face/PIN)
+    help               Show this help message
+
+  ${C_BOLD}Duration${C_RESET}
+    You can specify a custom duration:
+    • wow superadmin unlock 30m     (30 minutes)
+    • wow superadmin unlock 1h      (1 hour)
+    • wow superadmin unlock 45      (45 minutes)
+
+    If not specified, you will be prompted
+    to confirm the default (20 minutes) or
+    enter a custom duration.
 
   ${C_BOLD}Zone Access (Tier 2)${C_RESET}
     SuperAdmin unlocks ALL zones except Nuclear:
@@ -151,6 +173,73 @@ cmd_unlock() {
         return 1
     fi
 
+    # ─────────────────────────────────────────────────────────────────────────
+    # Duration Selection
+    # ─────────────────────────────────────────────────────────────────────────
+
+    local SELECTED_DURATION FORMATTED_DURATION INACTIVITY_DURATION FORMATTED_INACTIVITY
+
+    # Resolve duration from argument or prompt user
+    if [[ -n "${DURATION_ARG}" ]]; then
+        # User provided duration argument
+        SELECTED_DURATION=$(duration_resolve_arg "${DURATION_ARG}" "superadmin")
+        if [[ -z "${SELECTED_DURATION}" || "${SELECTED_DURATION}" == "0" ]]; then
+            echo "  ${C_RED}●${C_RESET} Invalid duration: ${DURATION_ARG}"
+            echo ""
+            echo "  ${C_DIM}Examples: 30m, 1h, 45${C_RESET}"
+            echo ""
+            return 1
+        fi
+        FORMATTED_DURATION=$(duration_format "${SELECTED_DURATION}")
+        INACTIVITY_DURATION=$(duration_calculate_inactivity "${SELECTED_DURATION}" "superadmin")
+        FORMATTED_INACTIVITY=$(duration_format "${INACTIVITY_DURATION}")
+
+        echo "  ${C_DIM}Duration:${C_RESET} ${C_BOLD}${FORMATTED_DURATION}${C_RESET}"
+        echo "  ${C_DIM}Auto-lock after:${C_RESET} ${C_BOLD}${FORMATTED_INACTIVITY}${C_RESET} ${C_DIM}inactivity${C_RESET}"
+        echo ""
+    else
+        # No argument - prompt for duration or confirm default
+        local DEFAULT_DURATION FORMATTED_DEFAULT USER_DURATION
+
+        DEFAULT_DURATION=$(duration_get_default "superadmin")
+        FORMATTED_DEFAULT=$(duration_format "${DEFAULT_DURATION}")
+
+        echo "  ${C_DIM}Duration${C_RESET}"
+        echo ""
+        echo "  ${C_DIM}Default:${C_RESET} ${C_BOLD}${FORMATTED_DEFAULT}${C_RESET}"
+        echo "  ${C_DIM}Press Enter to accept, or enter custom (e.g., 30m, 1h):${C_RESET}"
+        echo ""
+        printf "  ${C_BOLD}>${C_RESET} "
+
+        # Read from TTY
+        if [[ -t 0 ]]; then
+            read -r USER_DURATION < /dev/tty 2>/dev/null || USER_DURATION=""
+        else
+            USER_DURATION=""
+        fi
+
+        if [[ -z "${USER_DURATION}" ]]; then
+            # Use default
+            SELECTED_DURATION="${DEFAULT_DURATION}"
+        else
+            # Parse user input
+            SELECTED_DURATION=$(duration_parse "${USER_DURATION}")
+            if [[ -z "${SELECTED_DURATION}" || "${SELECTED_DURATION}" == "0" ]]; then
+                echo ""
+                echo "  ${C_YELLOW}●${C_RESET} Invalid format, using default (${FORMATTED_DEFAULT})"
+                SELECTED_DURATION="${DEFAULT_DURATION}"
+            fi
+        fi
+
+        FORMATTED_DURATION=$(duration_format "${SELECTED_DURATION}")
+        INACTIVITY_DURATION=$(duration_calculate_inactivity "${SELECTED_DURATION}" "superadmin")
+        FORMATTED_INACTIVITY=$(duration_format "${INACTIVITY_DURATION}")
+
+        echo ""
+        echo "  ${C_GREEN}●${C_RESET} ${C_BOLD}${FORMATTED_DURATION}${C_RESET} ${C_DIM}(auto-lock after ${FORMATTED_INACTIVITY} inactivity)${C_RESET}"
+        echo ""
+    fi
+
     # Show authentication method
     if superadmin_has_biometric; then
         echo "  ${C_DIM}Authenticating with fingerprint...${C_RESET}"
@@ -160,18 +249,18 @@ cmd_unlock() {
         echo ""
     fi
 
-    # Attempt activation
-    if superadmin_activate; then
-        local remaining
-        remaining=$(superadmin_get_remaining)
+    # Attempt activation with custom duration
+    if superadmin_activate "${SELECTED_DURATION}" "${INACTIVITY_DURATION}"; then
         echo ""
         echo "  ${C_GREEN}●${C_RESET} ${C_BOLD}SuperAdmin Unlocked (Tier 2)${C_RESET}"
         echo "  ${C_GREEN}●${C_RESET} Bypass also granted ${C_DIM}(hybrid mode)${C_RESET}"
         echo ""
+        echo "  ${C_DIM}Duration:${C_RESET} ${C_BOLD}${FORMATTED_DURATION}${C_RESET}"
+        echo "  ${C_DIM}Auto-lock:${C_RESET} ${C_BOLD}${FORMATTED_INACTIVITY}${C_RESET} ${C_DIM}inactivity${C_RESET}"
+        echo ""
         echo "  ${C_DIM}Unlocked zones:${C_RESET}"
         echo "    ${C_DIM}DEVELOPMENT, CONFIG, SENSITIVE, SYSTEM, WOW_SELF, GENERAL${C_RESET}"
         echo ""
-        echo "  ${C_DIM}Expires in $((remaining / 60)) minutes.${C_RESET}"
         echo "  ${C_DIM}Nuclear operations (rm -rf /, etc.) remain blocked.${C_RESET}"
         echo "  ${C_DIM}Run${C_RESET} ${C_CYAN}wow superadmin lock${C_RESET} ${C_DIM}to re-lock.${C_RESET}"
         echo ""

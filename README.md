@@ -1,4 +1,4 @@
-# WoW System v7.0.0
+# WoW System v7.0.1
 
 **Ways of Working Enforcement for Claude Code**
 
@@ -261,6 +261,84 @@ Your WoW Score (0-100) reflects code quality and safety:
 - Violation: -10 points
 - Good practice: +5 points
 - Natural decay: Gradual improvement over time (5% every 5 minutes)
+
+### CLI Commands
+
+WoW provides CLI commands for managing protection modes:
+
+#### Bypass Mode (Tier 1)
+Temporarily unlock the DEVELOPMENT zone for operations that would normally be blocked:
+
+```bash
+# Activate with default duration (4 hours)
+wow bypass
+
+# Activate with custom duration
+wow bypass 2h       # 2 hours
+wow bypass 30m      # 30 minutes
+wow bypass 1h30m    # 1 hour 30 minutes
+wow bypass 120      # 120 minutes
+
+# Re-enable protection
+wow protect
+
+# Check status
+wow bypass-status
+```
+
+**What bypass unlocks:**
+- DEVELOPMENT zone (`~/Projects/*`)
+- GENERAL zone (no restrictions)
+
+**What bypass does NOT unlock:**
+- CONFIG zone (`~/.config/*`, `~/.claude/*`)
+- SENSITIVE zone (`~/.ssh/*`, `~/.aws/*`)
+- SYSTEM zone (`/etc/*`, `/bin/*`, `/usr/*`)
+- Nuclear operations (always blocked)
+
+**Safety features:**
+- Requires interactive terminal (TTY)
+- Requires passphrase authentication
+- Auto-expires based on duration (default 4h)
+- Auto-locks after proportional inactivity (1:8 ratio)
+- Rate limited: 50 operations per minute
+
+#### SuperAdmin Mode (Tier 2)
+Unlock ALL zones except Nuclear for high-privilege operations:
+
+```bash
+# Authenticate with fingerprint or passphrase
+wow superadmin unlock
+
+# With custom duration
+wow superadmin unlock 30m   # 30 minutes
+wow superadmin unlock 1h    # 1 hour
+
+# Re-lock
+wow superadmin lock
+
+# Check status
+wow superadmin status
+
+# Setup passphrase (for systems without fingerprint)
+wow superadmin setup
+
+# Enroll Windows Hello (WSL2 only)
+wow superadmin setup --hello
+```
+
+**What superadmin unlocks:**
+- ALL zones: DEVELOPMENT, CONFIG, SENSITIVE, SYSTEM, WOW_SELF, GENERAL
+- Also grants Bypass capabilities (hybrid mode)
+
+**What superadmin does NOT unlock:**
+- Nuclear operations: `rm -rf /`, fork bombs, `dd` to devices
+
+**Safety features:**
+- Requires biometric (fingerprint/face) or strong passphrase
+- Default duration: 20 minutes
+- Auto-locks after proportional inactivity (1:4 ratio)
+- Shorter duration than bypass for security
 
 ### Configuration
 

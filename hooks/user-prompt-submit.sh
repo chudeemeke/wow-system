@@ -25,12 +25,17 @@ if [[ "${WOW_DEBUG:-0}" == "1" ]]; then
 fi
 
 # Determine WoW system location
+# Priority: WOW_HOME > $HOME/.claude > Git Bash path > WSL path > relative
 if [[ -n "${WOW_HOME:-}" ]]; then
     WOW_SYSTEM_DIR="${WOW_HOME}"
-elif [[ -d "${HOME}/.claude/wow-system" ]]; then
+elif [[ -n "${HOME:-}" && -d "${HOME}/.claude/wow-system" ]]; then
     WOW_SYSTEM_DIR="${HOME}/.claude/wow-system"
-elif [[ -d "/mnt/c/Users/Destiny/iCloudDrive/Documents/AI Tools/Anthropic Solution/Projects/wow-system" ]]; then
-    WOW_SYSTEM_DIR="/mnt/c/Users/Destiny/iCloudDrive/Documents/AI Tools/Anthropic Solution/Projects/wow-system"
+elif [[ -d "/c/Users/Destiny/.claude/wow-system" ]]; then
+    # Git Bash path (when $HOME is empty)
+    WOW_SYSTEM_DIR="/c/Users/Destiny/.claude/wow-system"
+elif [[ -d "/mnt/c/Users/Destiny/.claude/wow-system" ]]; then
+    # WSL2 path (via Windows mount)
+    WOW_SYSTEM_DIR="/mnt/c/Users/Destiny/.claude/wow-system"
 else
     # Fallback: relative to this script
     HOOK_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

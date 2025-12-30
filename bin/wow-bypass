@@ -33,6 +33,15 @@ VERSION="$(tr -d '[:space:]' < "${WOW_HOME}/VERSION" 2>/dev/null || echo "unknow
 # ─────────────────────────────────────────────────────────────────────────────
 # Global Options (handle before anything else)
 # ─────────────────────────────────────────────────────────────────────────────
+# Capture duration argument before option parsing
+DURATION_ARG=""
+for arg in "$@"; do
+    case "${arg}" in
+        -h|--help|help|-v|--version|version) ;;
+        *) DURATION_ARG="${arg}" ;;
+    esac
+done
+
 case "${1:-}" in
     -h|--help|help)
         cat << EOF
@@ -43,7 +52,7 @@ case "${1:-}" in
   ────────────────────────────────────────
 
   Usage
-    wow bypass
+    wow bypass [duration]
 
   Description
     Temporarily unlock Development zone (~/Projects/*)
@@ -68,9 +77,20 @@ case "${1:-}" in
     • Configured passphrase
     • Valid integrity checksums
 
+  Duration
+    You can specify a custom duration:
+    • wow bypass 2h       (2 hours)
+    • wow bypass 30m      (30 minutes)
+    • wow bypass 1h30m    (1 hour 30 minutes)
+    • wow bypass 120      (120 minutes)
+
+    If not specified, you will be prompted
+    to confirm the default (4 hours) or
+    enter a custom duration.
+
   Safety
-    • Auto-expires after 4 hours max
-    • Auto-locks after 30 min inactivity
+    • Auto-expires based on duration (default 4h)
+    • Auto-locks after proportional inactivity
     • Rate limited: 50 operations per minute
     • Nuclear operations always blocked
 
@@ -125,6 +145,8 @@ print_progress() {
 # ─────────────────────────────────────────────────────────────────────────────
 source "${WOW_HOME}/src/security/bypass-core.sh" || exit 1
 source "${WOW_HOME}/src/security/bypass-always-block.sh" 2>/dev/null || true
+source "${WOW_HOME}/src/core/duration-parser.sh" 2>/dev/null || true
+source "${WOW_HOME}/src/core/interactive-duration.sh" 2>/dev/null || true
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Interface
@@ -209,6 +231,69 @@ print_progress $total_checks $total_checks
 printf " ${C_DIM}All checks passed${C_RESET} ${C_GREEN}✓${C_RESET}\n"
 echo ""
 
+# ─────────────────────────────────────────────────────────────────────────────
+# Duration Selection
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Resolve duration from argument or prompt user
+if [[ -n "${DURATION_ARG}" ]]; then
+    # User provided duration argument
+    SELECTED_DURATION=$(duration_resolve_arg "${DURATION_ARG}" "bypass")
+    if [[ -z "${SELECTED_DURATION}" || "${SELECTED_DURATION}" == "0" ]]; then
+        echo "  ${C_RED}●${C_RESET} Invalid duration: ${DURATION_ARG}"
+        echo ""
+        echo "  ${C_DIM}Examples: 2h, 30m, 1h30m, 120${C_RESET}"
+        echo ""
+        exit 1
+    fi
+    FORMATTED_DURATION=$(duration_format "${SELECTED_DURATION}")
+    INACTIVITY_DURATION=$(duration_calculate_inactivity "${SELECTED_DURATION}" "bypass")
+    FORMATTED_INACTIVITY=$(duration_format "${INACTIVITY_DURATION}")
+
+    echo "  ${C_DIM}Duration:${C_RESET} ${C_WHITE}${FORMATTED_DURATION}${C_RESET}"
+    echo "  ${C_DIM}Auto-lock after:${C_RESET} ${C_WHITE}${FORMATTED_INACTIVITY}${C_RESET} ${C_DIM}inactivity${C_RESET}"
+    echo ""
+else
+    # No argument - prompt for duration or confirm default
+    DEFAULT_DURATION=$(duration_get_default "bypass")
+    FORMATTED_DEFAULT=$(duration_format "${DEFAULT_DURATION}")
+
+    echo "  ${C_DIM}Duration${C_RESET}"
+    echo ""
+    echo "  ${C_DIM}Default:${C_RESET} ${C_WHITE}${FORMATTED_DEFAULT}${C_RESET}"
+    echo "  ${C_DIM}Press Enter to accept, or enter custom (e.g., 2h, 30m):${C_RESET}"
+    echo ""
+    printf "  ${C_WHITE}>${C_RESET} "
+
+    # Read from TTY
+    if [[ -t 0 ]]; then
+        read -r USER_DURATION < /dev/tty 2>/dev/null || USER_DURATION=""
+    else
+        USER_DURATION=""
+    fi
+
+    if [[ -z "${USER_DURATION}" ]]; then
+        # Use default
+        SELECTED_DURATION="${DEFAULT_DURATION}"
+    else
+        # Parse user input
+        SELECTED_DURATION=$(duration_parse "${USER_DURATION}")
+        if [[ -z "${SELECTED_DURATION}" || "${SELECTED_DURATION}" == "0" ]]; then
+            echo ""
+            echo "  ${C_YELLOW}●${C_RESET} Invalid format, using default (${FORMATTED_DEFAULT})"
+            SELECTED_DURATION="${DEFAULT_DURATION}"
+        fi
+    fi
+
+    FORMATTED_DURATION=$(duration_format "${SELECTED_DURATION}")
+    INACTIVITY_DURATION=$(duration_calculate_inactivity "${SELECTED_DURATION}" "bypass")
+    FORMATTED_INACTIVITY=$(duration_format "${INACTIVITY_DURATION}")
+
+    echo ""
+    echo "  ${C_GREEN}●${C_RESET} ${C_WHITE}${FORMATTED_DURATION}${C_RESET} ${C_DIM}(auto-lock after ${FORMATTED_INACTIVITY} inactivity)${C_RESET}"
+    echo ""
+fi
+
 # Authentication
 passphrase=$(bypass_read_passphrase "  ${C_WHITE}Passphrase${C_RESET} ") || {
     echo ""
@@ -232,7 +317,7 @@ fi
 echo ""
 printf "  ${C_DIM}Activating...${C_RESET}"
 
-if ! bypass_activate 2>/dev/null; then
+if ! bypass_activate "${SELECTED_DURATION}" "${INACTIVITY_DURATION}" 2>/dev/null; then
     echo ""
     echo "  ${C_RED}●${C_RESET} Activation failed"
     exit 1
@@ -245,6 +330,9 @@ echo ""
 echo "  ${C_DIM}────────────────────────────────────────${C_RESET}"
 echo ""
 echo "  ${C_GREEN}●${C_RESET} ${C_BOLD}Bypass Active (Tier 1)${C_RESET}"
+echo ""
+echo "  ${C_DIM}Duration:${C_RESET} ${C_WHITE}${FORMATTED_DURATION}${C_RESET}"
+echo "  ${C_DIM}Auto-lock:${C_RESET} ${C_WHITE}${FORMATTED_INACTIVITY}${C_RESET} ${C_DIM}inactivity${C_RESET}"
 echo ""
 echo "  ${C_DIM}Unlocked: DEVELOPMENT zone (~/Projects/*)${C_RESET}"
 echo ""

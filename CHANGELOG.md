@@ -5,6 +5,62 @@ All notable changes to WoW System (Ways of Working Enforcement) will be document
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [7.0.1] - 2025-12-30
+
+### Added - Custom Duration Support for Bypass/SuperAdmin
+
+User-specified durations for bypass and superadmin modes, replacing fixed countdown timers.
+
+#### Duration Parsing Module
+
+- **`src/core/duration-parser.sh`** (170 LOC)
+  - Human-friendly duration parsing: `1h`, `30m`, `2h30m`, `1h 45m`
+  - Plain minutes support: `60` = 60 minutes
+  - Duration formatting for display
+  - Validation and error handling
+  - 21 tests (100% passing)
+
+- **`src/core/interactive-duration.sh`** (237 LOC)
+  - Default durations: bypass=4h, superadmin=20m
+  - Inactivity timeout ratios: bypass 1:8, superadmin 1:4
+  - Interactive prompts for duration confirmation
+  - User input validation
+  - 16 tests (100% passing)
+
+#### CLI Updates
+
+- **`bin/wow-bypass`**
+  - Duration argument support: `wow bypass 2h`, `wow bypass 30m`
+  - Interactive prompt if no duration specified
+  - Confirms duration and inactivity timeout before activation
+  - Success message shows configured duration
+
+- **`bin/wow-superadmin`**
+  - Duration argument support: `wow superadmin unlock 30m`
+  - Interactive prompt if no duration specified
+  - Confirms duration and inactivity timeout before activation
+
+#### Examples
+
+```bash
+# Bypass with custom duration
+wow bypass 2h       # 2 hours (15m inactivity timeout)
+wow bypass 30m      # 30 minutes (3m 45s inactivity timeout)
+wow bypass 1h30m    # 1.5 hours (11m 15s inactivity timeout)
+wow bypass 120      # 120 minutes (15m inactivity timeout)
+
+# SuperAdmin with custom duration
+wow superadmin unlock 30m   # 30 minutes (7m 30s inactivity timeout)
+wow superadmin unlock 1h    # 1 hour (15m inactivity timeout)
+```
+
+#### Hook Improvements
+
+- **Git Bash compatibility**: Added fallback path detection for empty `$HOME`
+- Fixed path discovery for Windows Git Bash environments
+
+---
+
 ## [7.0.0] - 2025-12-25
 
 ### Added - 3-Tier Filesystem-Zone Security System

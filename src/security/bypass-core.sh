@@ -225,12 +225,21 @@ bypass_store_hash() {
 
 # Create HMAC-verified token with expiry (Safety Dead-Bolt)
 # Format v2: version:created:expires:hmac
+# Usage: bypass_create_token [custom_duration_seconds]
 bypass_create_token() {
+    local custom_duration="${1:-}"
     local created
     local expires
     local stored_hash
     local hmac
-    local max_duration="${BYPASS_DEFAULT_MAX_DURATION}"
+    local max_duration
+
+    # Use custom duration if provided, else default
+    if [[ -n "${custom_duration}" && "${custom_duration}" =~ ^[0-9]+$ ]]; then
+        max_duration="${custom_duration}"
+    else
+        max_duration="${BYPASS_DEFAULT_MAX_DURATION}"
+    fi
 
     created=$(date +%s)
     expires=$((created + max_duration))
@@ -439,12 +448,29 @@ bypass_get_remaining() {
 }
 
 # Activate bypass mode
+# Usage: bypass_activate [custom_duration_seconds] [custom_inactivity_seconds]
 bypass_activate() {
+    local custom_duration="${1:-}"
+    local custom_inactivity="${2:-}"
     local token
-    local max_duration="${BYPASS_DEFAULT_MAX_DURATION}"
-    local inactivity="${BYPASS_DEFAULT_INACTIVITY}"
+    local max_duration
+    local inactivity
 
-    token=$(bypass_create_token) || return 1
+    # Use custom duration if provided
+    if [[ -n "${custom_duration}" && "${custom_duration}" =~ ^[0-9]+$ ]]; then
+        max_duration="${custom_duration}"
+    else
+        max_duration="${BYPASS_DEFAULT_MAX_DURATION}"
+    fi
+
+    # Use custom inactivity if provided
+    if [[ -n "${custom_inactivity}" && "${custom_inactivity}" =~ ^[0-9]+$ ]]; then
+        inactivity="${custom_inactivity}"
+    else
+        inactivity="${BYPASS_DEFAULT_INACTIVITY}"
+    fi
+
+    token=$(bypass_create_token "${max_duration}") || return 1
 
     bypass_init || return 1
 
