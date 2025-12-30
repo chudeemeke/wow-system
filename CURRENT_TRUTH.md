@@ -1,6 +1,6 @@
 # WoW System - Current Truth
-Generated: 2025-12-29T20:48:00.689Z
-Generation Time: 0.998s
+Generated: 2025-12-30T23:48:52.836Z
+Generation Time: 0.822s
 
 ## ⚠️ Warnings
 - **validation**: Version consistency - Required validation failed
@@ -45,14 +45,16 @@ Chude <chude@emeke.org>
 #### Total Modules [ESSENTIAL]
 ```bash
 $ find src -name '*.sh' -type f | wc -l
-54
+56
 ```
 
 #### Core Modules
 ```bash
 $ ls -1 src/core/*.sh | xargs -n1 basename | sed 's/.sh//'
 config-loader
+duration-parser
 fast-path-validator
+interactive-duration
 orchestrator
 session-manager
 state-manager
@@ -139,7 +141,7 @@ wow-superadmin
 #### Total Tests [ESSENTIAL]
 ```bash
 $ find tests -name 'test-*.sh' -type f | wc -l
-45
+47
 ```
 
 #### Test Suites
@@ -156,6 +158,7 @@ di-container
 doc-sync
 domain-lists
 domain-validator
+duration-parser
 edit-handler
 email-sender
 event-bus
@@ -170,6 +173,7 @@ heuristic-integration
 heuristics
 install-manager
 integration-domain-validation
+interactive-duration
 notebookedit-handler
 orchestrator
 read-handler
@@ -251,13 +255,13 @@ docTruth v1.0.2
 #### Total Lines of Code
 ```bash
 $ find src -name '*.sh' -type f -exec wc -l {} + | tail -1 | awk '{print $1}'
-21657
+22088
 ```
 
 #### Core Module LOC
 ```bash
 $ find src/core -name '*.sh' -type f -exec wc -l {} + | tail -1 | awk '{print $1}'
-3172
+3577
 ```
 
 #### Handler LOC
@@ -269,13 +273,13 @@ $ find src/handlers -name '*.sh' -type f -exec wc -l {} + 2>/dev/null | tail -1 
 #### Test LOC
 ```bash
 $ find tests -name '*.sh' -type f -exec wc -l {} + 2>/dev/null | tail -1 | awk '{print $1}' || echo '0'
-24531
+24894
 ```
 
 #### Public Functions
 ```bash
 $ grep -rh '^[a-z_]*() {' src/ | wc -l
-681
+695
 ```
 
 #### Documentation Files
@@ -365,9 +369,9 @@ doctruth
 
 | Metric | Value |
 |--------|-------|
-| Hook execution time | 0m0.356s |
-| Total codebase size | 836K |
-| Total test suite size | 864K |
+| Hook execution time | 0m0.374s |
+| Total codebase size | 852K |
+| Total test suite size | 880K |
 
 ## Environment
 
