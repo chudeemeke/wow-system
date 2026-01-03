@@ -168,12 +168,12 @@ security add-generic-password \
 
 ## Security Checklist
 
-- ✅ Use app-specific passwords (never main password)
-- ✅ Credentials stored in OS keychain
-- ✅ Sensitive data filtered from logs
-- ✅ Rate limiting enabled
-- ✅ Priority threshold set appropriately
-- ✅ Regular password rotation
+-  Use app-specific passwords (never main password)
+-  Credentials stored in OS keychain
+-  Sensitive data filtered from logs
+-  Rate limiting enabled
+-  Priority threshold set appropriately
+-  Regular password rotation
 
 ---
 

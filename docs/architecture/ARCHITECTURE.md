@@ -4,7 +4,7 @@
 
 ---
 
-## 🎯 System Overview
+##  System Overview
 
 The WoW System is an **intelligence layer** that sits between Claude LLM and Claude Code's tool execution, enforcing development best practices through real-time interception, behavioral tracking, and intelligent guidance.
 
@@ -14,7 +14,7 @@ The WoW System is an **intelligence layer** that sits between Claude LLM and Cla
 
 ---
 
-## 🏗️ Architectural Layers
+## ️ Architectural Layers
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -53,7 +53,7 @@ The WoW System is an **intelligence layer** that sits between Claude LLM and Cla
 
 ---
 
-## 📦 Component Architecture
+##  Component Architecture
 
 ### 1. **Hooks** (`src/hooks/`)
 
@@ -130,7 +130,7 @@ The WoW System is an **intelligence layer** that sits between Claude LLM and Cla
 # Input (from Claude Code hook):
 {
   "tool": "Bash",
-  "command": "git commit -m '🎉 Initial commit'",
+  "command": "git commit -m ' Initial commit'",
   "args": {...}
 }
 
@@ -140,7 +140,7 @@ The WoW System is an **intelligence layer** that sits between Claude LLM and Cla
   "command": "git commit -m 'Initial commit' --author='Chude <chude@emeke.org>'",
   "args": {...},
   "wow_status": "MODIFIED",
-  "wow_message": "✅ AUTO-FIX: Removed emoji, added author"
+  "wow_message": " AUTO-FIX: Removed emoji, added author"
 }
 ```
 
@@ -292,17 +292,17 @@ wow::error::handle <code> <message>
 - `banner.sh` - Session start welcome banner
   ```
   ╔══════════════════════════════════════════════════════════╗
-  ║              🏆 WoW System v4.1 Active                   ║
+  ║               WoW System v4.1 Active                   ║
   ║        Ways of Working Intelligence Enabled              ║
   ╠══════════════════════════════════════════════════════════╣
   ║  Score: 95/100 (A+) | Streak: 12 | Trust: HIGH          ║
-  ║  Your coding excellence is being tracked ✨               ║
+  ║  Your coding excellence is being tracked                ║
   ╚══════════════════════════════════════════════════════════╝
   ```
 
 - `metrics-display.sh` - Real-time metrics bar
   ```
-  ⚡ Score:88(B) | ECR:2.33 | VR:10.0% | Trend:↗ improving | Streak:6
+   Score:88(B) | ECR:2.33 | VR:10.0% | Trend:↗ improving | Streak:6
   ```
 
 - `feedback-renderer.sh` - Contextual feedback messages
@@ -313,7 +313,7 @@ wow::error::handle <code> <message>
 - `report-generator.sh` - Session summary report
   ```
   ═══════════════════════════════════════════════════════════
-  🏁 WOW SESSION REPORT
+   WOW SESSION REPORT
   ═══════════════════════════════════════════════════════════
   Final Score: 95/100 (A+)
   Total Operations: 23
@@ -322,11 +322,11 @@ wow::error::handle <code> <message>
   Longest Streak: 15 consecutive compliant operations
   Trust Level: HIGH → MAXIMUM (upgraded!)
 
-  🏆 OUTSTANDING SESSION!
+   OUTSTANDING SESSION!
   You demonstrated excellent WoW compliance.
   Keep up the great work!
 
-  💡 Tip: Your ECR is excellent. Maintain this pattern.
+   Tip: Your ECR is excellent. Maintain this pattern.
   ═══════════════════════════════════════════════════════════
   ```
 
@@ -344,15 +344,15 @@ wow::error::handle <code> <message>
 6. **Non-Intrusive**: Important but not overwhelming
 
 **Color Coding**:
-- 🟢 **Green**: Success, praise, high scores (A+, A)
-- 🟡 **Yellow**: Warnings, reminders, medium scores (B, C)
-- 🔴 **Red**: Blocks, violations, low scores (D, F)
-- 🔵 **Blue**: Info, neutral feedback
-- 🟣 **Purple**: Special achievements, milestones
+-  **Green**: Success, praise, high scores (A+, A)
+-  **Yellow**: Warnings, reminders, medium scores (B, C)
+-  **Red**: Blocks, violations, low scores (D, F)
+-  **Blue**: Info, neutral feedback
+-  **Purple**: Special achievements, milestones
 
 ---
 
-## 🔒 Security Model
+##  Security Model
 
 ### Defense in Depth
 
@@ -379,10 +379,10 @@ wow::error::handle <code> <message>
 ### Threat Model
 
 **What We Protect Against**:
-1. ❌ Accidental destructive commands
-2. ❌ Unauthorized file writes to system paths
-3. ❌ State corruption
-4. ❌ WoW system bypass attempts
+1.  Accidental destructive commands
+2.  Unauthorized file writes to system paths
+3.  State corruption
+4.  WoW system bypass attempts
 
 **What We Don't Protect Against** (out of scope):
 - Intentional user override (users can disable WoW)
@@ -398,14 +398,14 @@ wow::error::handle <code> <message>
 trap 'exit 0' ERR  # If WoW fails, return success (don't block Claude)
 
 if ! wow_initialize; then
-  echo "⚠️ WoW system initialization failed. Claude Code continues without WoW." >&2
+  echo " WoW system initialization failed. Claude Code continues without WoW." >&2
   exit 0  # Don't block Claude Code
 fi
 ```
 
 ---
 
-## 📊 Data Flow
+##  Data Flow
 
 ### 1. Session Start Flow
 
@@ -468,14 +468,14 @@ wow/strategies/pattern-detector.sh → Analyze trends
         ↓
 wow/ui/metrics-display.sh → Render metrics bar
         ↓
-Display: "⚡ Score:88(B) | ECR:2.33 | VR:10% | Trend:↗"
+Display: " Score:88(B) | ECR:2.33 | VR:10% | Trend:↗"
         ↓
 Return to Claude Code (continue with response)
 ```
 
 ---
 
-## 🔌 Extension Points
+##  Extension Points
 
 ### Plugin Architecture
 
@@ -522,7 +522,7 @@ wow::plugin::register "PreToolUse:Bash" "my_custom_check"
 
 ---
 
-## 🛠️ Technology Stack
+## ️ Technology Stack
 
 **Language**: Bash (v4.0+)
 - Native to Linux/WSL2/Mac
@@ -547,7 +547,7 @@ wow::plugin::register "PreToolUse:Bash" "my_custom_check"
 
 ---
 
-## 📈 Performance Targets
+##  Performance Targets
 
 | Metric | Target | Rationale |
 |--------|--------|-----------|
@@ -566,7 +566,7 @@ wow::plugin::register "PreToolUse:Bash" "my_custom_check"
 
 ---
 
-## 🧪 Testing Strategy
+##  Testing Strategy
 
 ### Unit Tests (`tests/unit/`)
 - Test each function in isolation
@@ -592,7 +592,7 @@ wow::plugin::register "PreToolUse:Bash" "my_custom_check"
 
 ---
 
-## 🚀 Deployment Model
+##  Deployment Model
 
 ### Development
 ```bash
@@ -624,7 +624,7 @@ vim src/core/state-manager.sh
 
 ---
 
-## 📚 Documentation Strategy
+##  Documentation Strategy
 
 1. **Code Comments**: Every function documented
 2. **README.md**: Quick start, overview
@@ -636,25 +636,25 @@ vim src/core/state-manager.sh
 
 ---
 
-## 🎯 Success Metrics
+##  Success Metrics
 
 **System Quality**:
-- ✅ Hook execution <50ms (95th percentile)
-- ✅ Zero crashes in normal operation
-- ✅ Test coverage >80%
-- ✅ Zero false positives (blocking valid operations)
+-  Hook execution <50ms (95th percentile)
+-  Zero crashes in normal operation
+-  Test coverage >80%
+-  Zero false positives (blocking valid operations)
 
 **User Experience**:
-- ✅ Users understand feedback instantly
-- ✅ Actionable guidance provided
-- ✅ Delightful interactions
-- ✅ Non-intrusive operation
+-  Users understand feedback instantly
+-  Actionable guidance provided
+-  Delightful interactions
+-  Non-intrusive operation
 
 **Developer Experience**:
-- ✅ Easy to extend (plugin system)
-- ✅ Clear code organization
-- ✅ Well-documented
-- ✅ Simple deployment
+-  Easy to extend (plugin system)
+-  Clear code organization
+-  Well-documented
+-  Simple deployment
 
 ---
 

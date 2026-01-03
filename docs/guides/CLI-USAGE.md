@@ -129,7 +129,7 @@ Evidence: Credential detected: anthropic_api
 Context: Here's my API token: sk-ant-abc123...
 
 Action [y/n/e/q]: y
-✓ Logging to scratch.md...
+ Logging to scratch.md...
 
 ========================================
 Finding #2
@@ -139,7 +139,7 @@ Evidence: Path-related issue detected
 Context: Path with spaces: /mnt/c/My Folder...
 
 Action [y/n/e/q]: n
-⚠ Skipped
+ Skipped
 ```
 
 ### `report`

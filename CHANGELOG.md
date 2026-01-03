@@ -5,6 +5,107 @@ All notable changes to WoW System (Ways of Working Enforcement) will be document
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [7.0.2] - 2026-01-02
+
+### Added - Michi Multi-Agent System Planning
+
+**Research and specification work for multi-agent orchestration system**
+
+#### Research Completed
+
+- **Industry Landscape Analysis**
+  - claude-flow: MCP + Swarm architecture, 2.8-4.4x parallelism, AgentDB (SQLite + Vector)
+  - claude-code-hooks-mastery: Hook interception patterns, file-based logging
+  - claude-squad: Terminal multiplexing, shared files
+  - claude-code-heavy: Orchestrated research, 2-8 parallel agents
+  - claude-launcher: Rust CLI, multiple instances
+
+- **Protocol Research**
+  - A2A Protocol v0.3: 150+ org support including Anthropic, Linux Foundation governed
+  - Feature Request #3013: Parallel Agent Execution Mode (open, no official response)
+  - MCP Protocol: Anthropic's tool/context protocol, complementary to A2A
+
+#### Documentation Created
+
+- **`docs/plans/MULTI-AGENT-SYSTEM-PLAN.md`** (450 LOC)
+  - Architecture design with ASCII diagrams
+  - Hook layer integration (all 8 hook types)
+  - Three-tier memory architecture (Hot/Warm/Cold)
+  - Agent-to-agent communication approaches
+  - Dashboard UI mockups
+  - Workaround strategies for current limitations
+  - Implementation phases (5 phases)
+  - WoW System integration points
+
+- **`docs/plans/SPECS.md`** (600 LOC)
+  - Complete Michi specification document
+  - Functional requirements (P0/P1/P2 prioritized)
+  - Technical specifications
+  - Japanese terminology integration (Bushido, Judo principles)
+  - UI/UX specifications with ASCII mockups
+  - CLI command design
+  - Success criteria and metrics
+
+#### Project Naming
+
+- **Name**: Michi (Japanese: "The Way")
+- **Character**: Japanese character meaning "the way" (as in Bushido - "Way of the Warrior")
+- **Brand Story**: Connects to WoW (Ways of Working), martial arts principles, agent-as-warrior metaphor
+- **Terminology**: Dojo (Dashboard), Sensei (Orchestrator), Bushi (Agent), Kata (WoW patterns)
+
+### Changed - Documentation Reorganization
+
+**Comprehensive docs folder cleanup per WoW standards**
+
+#### Files Moved to Proper Subdirectories
+
+| Original Location | New Location |
+|-------------------|--------------|
+| `docs/SPECS.md` | `docs/plans/SPECS.md` |
+| `docs/IMPLEMENTATION-PLAN.md` | `docs/history/IMPLEMENTATION-PLAN.md` |
+| `docs/ROADMAP-V6.0.0.md` | `docs/history/ROADMAP-V6.0.0.md` |
+| `docs/PHASE-B-FEATURE-EXPANSION-DESIGN.md` | `docs/history/PHASE-B-FEATURE-EXPANSION-DESIGN.md` |
+| `docs/UX-ENHANCEMENT-PLAN.md` | `docs/history/UX-ENHANCEMENT-PLAN.md` |
+| `docs/IMMUTABLE-PROTECTION.md` | `docs/guides/IMMUTABLE-PROTECTION.md` |
+
+#### WoW Compliance Fixes
+
+- **Emoji Removal**: Removed all emojis from all markdown files in docs/ folder
+  - architecture/*.md
+  - features/*.md
+  - guides/*.md
+  - history/*.md
+  - plans/*.md
+  - principles/*.md
+  - reference/*.md
+  - README.md
+
+- **Updated docs/README.md**
+  - Removed emoji section headers
+  - Added "Current Planning & Design" section with Michi docs
+  - Added "Historical Planning Documents" subsection
+  - Fixed all internal links to reflect new file locations
+
+#### Final Structure
+
+```
+docs/
+README.md           (only file in root)
+architecture/
+deprecated/
+features/
+guides/
+history/
+plans/
+  BYPASS-SYSTEM-PLAN.md
+  MULTI-AGENT-SYSTEM-PLAN.md
+  SPECS.md
+principles/
+reference/
+```
+
+---
+
 ## [7.0.1] - 2025-12-30
 
 ### Added - Custom Duration Support for Bypass/SuperAdmin
@@ -857,6 +958,134 @@ src/handlers/handler-router.sh     # Bypass integration
 install.sh                         # Bypass deployment
 config/wow-config.json             # Version 6.0.0
 ```
+
+---
+
+## [6.0.0] - 2025-11-29
+
+### Added - Three-Tier Domain Validation System
+
+**Complete domain validation architecture replacing hardcoded domain lists**
+
+This release introduces a comprehensive domain validation system that provides flexible, user-customizable security for web operations while maintaining immutable protection against critical attacks.
+
+#### Three-Tier Architecture
+
+| Tier | Purpose | Mutability | Location |
+|------|---------|------------|----------|
+| **TIER 1** | Critical Security | Immutable (hardcoded) | `domain-lists.sh` |
+| **TIER 2** | System Defaults | Append-only | `config/security/system-*.conf` |
+| **TIER 3** | User Custom | Fully editable | `config/security/custom-*.conf` |
+
+#### TIER 1: Critical Security (Immutable)
+
+36+ SSRF/metadata attack patterns hardcoded - cannot be overridden:
+- localhost variants (127.0.0.1, ::1, 0.0.0.0)
+- AWS metadata (169.254.169.254, fd00:ec2::254)
+- GCP metadata (metadata.google.internal)
+- Azure metadata (169.254.169.254)
+- Kubernetes endpoints (kubernetes.default.svc)
+- Private IP ranges (10.x, 172.16-31.x, 192.168.x)
+- Link-local addresses (169.254.x.x)
+
+#### TIER 2: System Defaults (Config - Append-Only)
+
+50+ trusted domains shipped with WoW:
+- Developer resources: GitHub, GitLab, Stack Overflow, MDN
+- Package registries: npm, PyPI, crates.io, Maven
+- Cloud providers: AWS docs, GCP docs, Azure docs
+- AI/ML: Anthropic, OpenAI, Hugging Face
+- Utilities: regex101, jsonlint, draw.io
+
+Users can ADD domains but cannot REMOVE system defaults.
+
+**Files:**
+- `config/security/system-safe-domains.conf`
+- `config/security/system-blocked-domains.conf`
+
+#### TIER 3: User Custom (Config - Fully Editable)
+
+User-specific domain lists with full control:
+- Company/enterprise domains
+- Project-specific APIs
+- Personal safe/blocked preferences
+
+**Files:**
+- `config/security/custom-safe-domains.conf`
+- `config/security/custom-blocked-domains.conf`
+
+#### Interactive Prompt System (Phase 3)
+
+Unknown domains trigger user prompt with 4 options:
+1. **Block this request** - Deny access, no persistence
+2. **Allow this time only** - Session-based allowance
+3. **Add to my safe list** - Persistent to custom-safe-domains.conf
+4. **Always block this domain** - Persistent to custom-blocked-domains.conf
+
+**Features:**
+- Session-based tracking prevents re-prompting
+- Non-interactive fallback (WARN instead of block)
+- Graceful degradation when TTY unavailable
+
+#### New Files
+
+- **`src/security/domain-lists.sh`** (350 LOC)
+  - Three-tier list management
+  - Config file loading with validation
+  - Pattern matching for domain checks
+  - Reload capability for config changes
+
+- **`src/security/domain-validator.sh`** (500 LOC)
+  - Chain of Responsibility validation pattern
+  - URL parsing and domain extraction
+  - Interactive prompt orchestration
+  - Session-based allow/block tracking
+  - Public API: `domain_validate()`, `domain_is_safe()`, `domain_add_custom()`
+
+- **`config/security/system-safe-domains.conf`** (50+ domains)
+- **`config/security/system-blocked-domains.conf`** (threat patterns)
+- **`config/security/custom-safe-domains.conf`** (user template)
+- **`config/security/custom-blocked-domains.conf`** (user template)
+
+- **`tests/test-domain-validator.sh`** (48 tests, 100% passing)
+  - TIER 1 immutable block tests
+  - TIER 2 system default tests
+  - TIER 3 user custom tests
+  - Interactive prompt tests
+  - Session tracking tests
+  - Edge case and validation tests
+
+#### Handler Integration
+
+- **`src/handlers/webfetch-handler.sh`** - Refactored to use `domain_validate()`
+  - Replaces hardcoded domain checks
+  - Backward-compatible (graceful fallback if validator unavailable)
+  - Supports all three tiers
+
+- **`src/handlers/websearch-handler.sh`** - Refactored for allowed_domains validation
+  - Uses domain validation for allowed_domains parameter
+  - SSRF prevention for domain specifications
+
+#### Test Coverage
+
+- 48 domain validation tests (100% passing)
+- 72 handler tests (100% passing)
+- Zero regressions in existing functionality
+
+#### Design Principles
+
+- **Defense in Depth**: Critical patterns always blocked regardless of config
+- **User Empowerment**: Full control over custom lists
+- **Backward Compatibility**: Handlers work without validator (graceful fallback)
+- **Transparency**: Clear prompts explain what's happening and why
+- **Persistence**: User decisions remembered across sessions
+
+### Changed - Documentation Reorganization (Phase 6)
+
+- Reorganized docs into proper subdirectories
+- Created `docs/architecture/`, `docs/features/`, `docs/guides/`, `docs/history/`, `docs/plans/`, `docs/reference/`
+- Moved planning documents to appropriate locations
+- Updated all internal links
 
 ---
 

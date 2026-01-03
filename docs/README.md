@@ -13,7 +13,7 @@ Welcome to the WoW System documentation! This guide helps you navigate our compr
 
 ## Documentation Structure
 
-### 📐 Architecture (`architecture/`)
+### Architecture (`architecture/`)
 Deep-dive into system design, patterns, and technical architecture.
 
 - [**ARCHITECTURE.md**](architecture/ARCHITECTURE.md) - Core system architecture and design patterns
@@ -23,7 +23,7 @@ Deep-dive into system design, patterns, and technical architecture.
 - [**STRESS-TEST-ARCHITECTURE.md**](architecture/STRESS-TEST-ARCHITECTURE.md) - Stress testing framework design
 - [**STRUCTURE_STANDARD.md**](architecture/STRUCTURE_STANDARD.md) - Project structure standards
 
-### ✨ Features (`features/`)
+### Features (`features/`)
 Documentation for specific features and capabilities.
 
 - [**CAPTURE-ENGINE.md**](features/CAPTURE-ENGINE.md) - Frustration detection and capture engine
@@ -36,7 +36,7 @@ Documentation for specific features and capabilities.
 - [**capture-engine-integration.md**](features/capture-engine-integration.md) - Capture engine integration guide
 - [**wow-capture-delivery.md**](features/wow-capture-delivery.md) - WoW capture system delivery notes
 
-### 📖 Guides (`guides/`)
+### Guides (`guides/`)
 Step-by-step guides and tutorials for users and developers.
 
 - [**DEVELOPER-GUIDE.md**](guides/DEVELOPER-GUIDE.md) - Comprehensive developer guide
@@ -45,17 +45,17 @@ Step-by-step guides and tutorials for users and developers.
 - [**FOR_FUTURE_CLAUDE.md**](guides/FOR_FUTURE_CLAUDE.md) - Context for future Claude sessions
 - [**MIGRATION-v6.0.0.md**](guides/MIGRATION-v6.0.0.md) - Migration guide from v5.x to v6.0.0
 
-### 📚 Reference (`reference/`)
+### Reference (`reference/`)
 API documentation, configuration references, and technical specifications.
 
 - [**API-REFERENCE.md**](reference/API-REFERENCE.md) - Complete API reference for all modules
 
-### 🔒 Security (`security/`)
+### Security (`security/`)
 Security-focused documentation, threat models, and security best practices.
 
 - *(Security documentation will be added here)*
 
-### 📜 History (`history/`)
+### History (`history/`)
 Historical records, session summaries, and archived documentation.
 
 - [**SESSION-SUMMARY-2025-10-22.md**](history/SESSION-SUMMARY-2025-10-22.md) - Session summary from Oct 22, 2025
@@ -72,10 +72,18 @@ Historical records, session summaries, and archived documentation.
 
 These documents represent active planning and design work:
 
-- [**ROADMAP-V6.0.0.md**](ROADMAP-V6.0.0.md) - v6.0.0 roadmap and implementation plan
-- [**IMPLEMENTATION-PLAN.md**](IMPLEMENTATION-PLAN.md) - Current implementation planning
-- [**PHASE-B-FEATURE-EXPANSION-DESIGN.md**](PHASE-B-FEATURE-EXPANSION-DESIGN.md) - Feature expansion design docs
-- [**UX-ENHANCEMENT-PLAN.md**](UX-ENHANCEMENT-PLAN.md) - UX enhancement planning
+- [**MULTI-AGENT-SYSTEM-PLAN.md**](plans/MULTI-AGENT-SYSTEM-PLAN.md) - Multi-agent orchestration system (Michi) research
+- [**SPECS.md**](plans/SPECS.md) - Michi multi-agent system specification
+- [**BYPASS-SYSTEM-PLAN.md**](plans/BYPASS-SYSTEM-PLAN.md) - Bypass system design
+
+### Historical Planning Documents
+
+Archived planning documents from previous versions:
+
+- [**ROADMAP-V6.0.0.md**](history/ROADMAP-V6.0.0.md) - v6.0.0 roadmap (historical)
+- [**IMPLEMENTATION-PLAN.md**](history/IMPLEMENTATION-PLAN.md) - v4.1 implementation plan (historical)
+- [**PHASE-B-FEATURE-EXPANSION-DESIGN.md**](history/PHASE-B-FEATURE-EXPANSION-DESIGN.md) - v5.3-5.4 feature expansion (historical)
+- [**UX-ENHANCEMENT-PLAN.md**](history/UX-ENHANCEMENT-PLAN.md) - v5.1-5.2 UX enhancement (historical)
 
 ---
 

@@ -18,25 +18,25 @@ Successfully designed and implemented the **Capture Engine** for WoW v5.0.1 usin
 
 **File:** `/src/engines/capture-engine.sh`
 **Lines of Code:** ~500 LOC
-**Status:** ✓ Complete
+**Status:**  Complete
 
 **Features Implemented:**
-- ✓ Engine initialization with double-sourcing protection
-- ✓ Event-driven architecture (event bus integration)
-- ✓ Real-time frustration detection
-- ✓ Pattern analysis (4 pattern types)
-- ✓ Confidence scoring (4 levels)
-- ✓ Intelligent prompting decisions
-- ✓ Session state management
-- ✓ Frustration storage and retrieval
-- ✓ Cooldown management
-- ✓ Self-test functionality
+-  Engine initialization with double-sourcing protection
+-  Event-driven architecture (event bus integration)
+-  Real-time frustration detection
+-  Pattern analysis (4 pattern types)
+-  Confidence scoring (4 levels)
+-  Intelligent prompting decisions
+-  Session state management
+-  Frustration storage and retrieval
+-  Cooldown management
+-  Self-test functionality
 
 ### 2. Test Suite
 
 **File:** `/tests/test-capture-engine.sh`
 **Lines of Code:** ~660 LOC
-**Status:** ✓ Complete
+**Status:**  Complete
 
 **Test Categories:**
 - Initialization (4 tests)
@@ -150,12 +150,12 @@ Successfully designed and implemented the **Capture Engine** for WoW v5.0.1 usin
 
 | Event Type | Description | Auto-detected via Event Bus |
 |------------|-------------|----------------------------|
-| `handler.blocked` | Dangerous operation blocked | ✓ |
-| `handler.error` | Operation failed | ✓ |
-| `handler.retry` | Operation retried | ✓ |
-| `path.issue` | Path problem detected | ✓ |
-| `security.credential` | Credential exposed | ✓ |
-| `workaround.detected` | Manual workaround attempted | ✓ |
+| `handler.blocked` | Dangerous operation blocked |  |
+| `handler.error` | Operation failed |  |
+| `handler.retry` | Operation retried |  |
+| `path.issue` | Path problem detected |  |
+| `security.credential` | Credential exposed |  |
+| `workaround.detected` | Manual workaround attempted |  |
 
 ---
 
@@ -227,22 +227,22 @@ Initialized
 
 Testing event detection...
 Detected: frust_1_1759650490
-✓ Event detection works
+ Event detection works
 
 Testing pattern analysis...
 Pattern: none
-✓ Pattern analysis works
+ Pattern analysis works
 
 Testing confidence scoring...
 Confidence: LOW
-✓ Confidence scoring works
+ Confidence scoring works
 
 Testing prompting decision...
 Should prompt: false
-✓ Prompting logic works
+ Prompting logic works
 
 Testing event bus integration...
-✓ Event bus integration works
+ Event bus integration works
 
 Capture Engine Summary
 ======================
@@ -252,18 +252,18 @@ Pattern Analysis: none
 Confidence Level: LOW
 Should Prompt User: false
 
-✓ All self-tests complete!
+ All self-tests complete!
 ```
 
 ### Test Suite Status
 
 The comprehensive test suite (`tests/test-capture-engine.sh`) includes:
 
-- ✓ All core functions tested
-- ✓ Edge cases covered
-- ✓ Integration scenarios validated
-- ✓ Error handling verified
-- ✓ State management tested
+-  All core functions tested
+-  Edge cases covered
+-  Integration scenarios validated
+-  Error handling verified
+-  State management tested
 
 **Note:** Full test suite execution requires test environment setup due to WoW hook interference. Individual tests pass when run in isolation.
 
@@ -399,12 +399,12 @@ The engine is designed for extension via:
 
 To integrate Capture Engine into your WoW deployment:
 
-- [x] ✓ Core engine implementation complete
-- [x] ✓ Event bus integration verified
-- [x] ✓ Session state management working
-- [x] ✓ Pattern analysis functional
-- [x] ✓ Confidence scoring accurate
-- [x] ✓ Prompting logic correct
+- [x]  Core engine implementation complete
+- [x]  Event bus integration verified
+- [x]  Session state management working
+- [x]  Pattern analysis functional
+- [x]  Confidence scoring accurate
+- [x]  Prompting logic correct
 - [ ] Email system integration (pending)
 - [ ] Production deployment configuration
 - [ ] Monitoring/observability setup
@@ -416,12 +416,12 @@ To integrate Capture Engine into your WoW deployment:
 
 The Capture Engine v1.0.0 successfully delivers on all requirements:
 
-✓ **TDD Approach**: Tests written first, implementation follows
-✓ **Event-Driven**: Seamless event bus integration
-✓ **Pattern Recognition**: 4 distinct pattern types detected
-✓ **Intelligent Prompting**: Threshold-based with cooldown
-✓ **Production Ready**: 500 LOC, 44 tests, comprehensive docs
-✓ **WoW Principles**: Fail-safe, loosely coupled, tightly integrated
+ **TDD Approach**: Tests written first, implementation follows
+ **Event-Driven**: Seamless event bus integration
+ **Pattern Recognition**: 4 distinct pattern types detected
+ **Intelligent Prompting**: Threshold-based with cooldown
+ **Production Ready**: 500 LOC, 44 tests, comprehensive docs
+ **WoW Principles**: Fail-safe, loosely coupled, tightly integrated
 
 The engine is ready for integration with the email/notification system and production deployment.
 
@@ -441,4 +441,4 @@ For questions, issues, or contributions:
 
 ---
 
-**Status:** ✓ DELIVERED - PRODUCTION READY
+**Status:**  DELIVERED - PRODUCTION READY

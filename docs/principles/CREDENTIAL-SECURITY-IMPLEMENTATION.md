@@ -145,7 +145,7 @@ scanner_view_alerts([lines]) -> log viewer
 **User Alert Format:**
 ```
 ╔════════════════════════════════════════════════════════════════╗
-║  ⚠️  CRITICAL: CREDENTIAL DETECTED                            ║
+║    CRITICAL: CREDENTIAL DETECTED                            ║
 ╚════════════════════════════════════════════════════════════════╝
 
 Type:     github_pat
@@ -429,7 +429,7 @@ scanner_scan_string "GITHUB_TOKEN=ghp_1234567890abcdefghijklmnopqrstuv123456" "t
 
 ```
 ╔════════════════════════════════════════════════════════════════╗
-║  ⚠️  CRITICAL: CREDENTIAL DETECTED                            ║
+║    CRITICAL: CREDENTIAL DETECTED                            ║
 ╚════════════════════════════════════════════════════════════════╝
 
 Type:     github_pat
@@ -518,6 +518,6 @@ WoW System v5.0.1 - Credential Security Module
 
 ## Status
 
-✅ **COMPLETE** - Production Ready
+ **COMPLETE** - Production Ready
 
 All components delivered, tested, and documented.

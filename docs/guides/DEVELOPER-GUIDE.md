@@ -266,18 +266,18 @@ _custom_handler_selftest() {
 
   # Test 1: Valid operation
   if handle_custom '{"param1": "safe_value"}'; then
-    echo "✓ Test 1 passed: Valid operation allowed"
+    echo " Test 1 passed: Valid operation allowed"
   else
-    echo "✗ Test 1 failed: Valid operation blocked"
+    echo " Test 1 failed: Valid operation blocked"
     return 1
   fi
 
   # Test 2: Dangerous pattern
   if handle_custom '{"param1": "pattern1"}'; then
-    echo "✗ Test 2 failed: Dangerous pattern not blocked"
+    echo " Test 2 failed: Dangerous pattern not blocked"
     return 1
   else
-    echo "✓ Test 2 passed: Dangerous pattern blocked"
+    echo " Test 2 passed: Dangerous pattern blocked"
   fi
 
   echo "Custom handler self-test passed!"
@@ -494,7 +494,7 @@ json_params="$2"
 
 # Route through handler
 if ! handler_route "$tool_name" "$json_params"; then
-  echo "❌ WoW System blocked operation"
+  echo " WoW System blocked operation"
   echo "Reason: $WOW_BLOCK_REASON"
   echo "Risk Level: $WOW_RISK_LEVEL"
   echo "Current Score: $(state_get wow_score)"
@@ -503,7 +503,7 @@ fi
 
 # If warning issued
 if [[ -n "$WOW_WARN_REASON" ]]; then
-  echo "⚠️  Warning: $WOW_WARN_REASON"
+  echo "  Warning: $WOW_WARN_REASON"
 fi
 
 exit 0

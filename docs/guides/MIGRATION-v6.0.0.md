@@ -12,11 +12,11 @@
 v6.0.0 introduces a **three-tier domain validation system** with interactive prompts. This is a **non-breaking upgrade** - your existing configuration and workflows continue to work unchanged.
 
 **What's New:**
-- 🔒 TIER 1: Immutable critical security blocks (36+ SSRF patterns)
-- 🔧 TIER 2: System safe/blocked domain lists (config-based)
-- ✏️ TIER 3: User custom domain lists (your preferences)
-- 💬 Interactive prompts for unknown domains
-- 📁 Reorganized documentation structure
+-  TIER 1: Immutable critical security blocks (36+ SSRF patterns)
+-  TIER 2: System safe/blocked domain lists (config-based)
+-  TIER 3: User custom domain lists (your preferences)
+-  Interactive prompts for unknown domains
+-  Reorganized documentation structure
 
 **What's Changed:**
 - WebFetch handler delegates to domain-validator module
@@ -79,13 +79,13 @@ bash install.sh
 ```
 WoW System Installation
 =======================
-✓ Created directory: ~/.claude/wow-system
-✓ Created directory: ~/.claude/wow-system/config/security
-✓ Installed system-safe-domains.conf
-✓ Installed system-blocked-domains.conf
-✓ Created custom-safe-domains.conf
-✓ Created custom-blocked-domains.conf
-✓ Installation complete!
+ Created directory: ~/.claude/wow-system
+ Created directory: ~/.claude/wow-system/config/security
+ Installed system-safe-domains.conf
+ Installed system-blocked-domains.conf
+ Created custom-safe-domains.conf
+ Created custom-blocked-domains.conf
+ Installation complete!
 ```
 
 ### Step 4: Verify New Configuration Files
@@ -520,18 +520,18 @@ time bash -c 'source src/security/domain-validator.sh; \
 
 ### What's Protected (No Changes from v5.x)
 
-- ✅ SSRF attacks (localhost, metadata endpoints)
-- ✅ Path traversal (../../etc/passwd)
-- ✅ System directory writes (/etc, /bin, /usr)
-- ✅ Credential detection and redaction
-- ✅ Malicious command injection
+-  SSRF attacks (localhost, metadata endpoints)
+-  Path traversal (../../etc/passwd)
+-  System directory writes (/etc, /bin, /usr)
+-  Credential detection and redaction
+-  Malicious command injection
 
 ### What's New in v6.0.0
 
-- ✅ **User-controlled domain lists** - You can add trusted domains without code changes
-- ✅ **Interactive decision-making** - You choose what to allow/block
-- ✅ **Session-based tracking** - Temporary decisions don't persist forever
-- ✅ **Three-tier architecture** - Critical blocks can't be bypassed, safe defaults provided
+-  **User-controlled domain lists** - You can add trusted domains without code changes
+-  **Interactive decision-making** - You choose what to allow/block
+-  **Session-based tracking** - Temporary decisions don't persist forever
+-  **Three-tier architecture** - Critical blocks can't be bypassed, safe defaults provided
 
 ### Threat Model
 
@@ -632,7 +632,7 @@ After successful migration:
 
 ---
 
-**Migration Complete!** 🎉
+**Migration Complete!** 
 
 You're now running WoW System v6.0.0 with three-tier domain validation and interactive prompts.
 

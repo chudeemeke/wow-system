@@ -54,10 +54,10 @@ Violation Event → Event Bus → Score Display Subscriber → UI Renderer
 **Display Format:**
 ```
 ╔══════════════════════════════════════╗
-║  ⚠️  SECURITY VIOLATION DETECTED     ║
+║    SECURITY VIOLATION DETECTED     ║
 ╠══════════════════════════════════════╣
 ║  WoW Score: 60/100 (▼10)             ║
-║  Status: ⚠️  WARNING                  ║
+║  Status:   WARNING                  ║
 ║                                      ║
 ║  Score Gauge:                        ║
 ║  [████████████░░░░░░░░] 60%          ║
@@ -126,7 +126,7 @@ Hook First Invocation → Session Init → Display Banner → Continue
 ```
 ╔══════════════════════════════════════════════════════════╗
 ║  WoW System v5.1.0 - Ways of Working Enforcement         ║
-║  Status: ✅ Active                                        ║
+║  Status:  Active                                        ║
 ╠══════════════════════════════════════════════════════════╣
 ║  Configuration:                                          ║
 ║  • Enforcement: Enabled                                  ║
@@ -197,7 +197,7 @@ Unknown Tool → Handler Router (miss) → Registry Logger → User Notification
 **Display Format (First Occurrence):**
 ```
 ╔══════════════════════════════════════╗
-║  ℹ️  NEW TOOL DETECTED                ║
+║    NEW TOOL DETECTED                ║
 ╠══════════════════════════════════════╣
 ║  Tool: NotebookEdit                  ║
 ║  First seen: 2025-10-17 14:30:12     ║
@@ -211,7 +211,7 @@ Unknown Tool → Handler Router (miss) → Registry Logger → User Notification
 **Summary Format (Weekly):**
 ```
 ╔══════════════════════════════════════╗
-║  📊 UNKNOWN TOOLS SUMMARY (7 days)   ║
+║   UNKNOWN TOOLS SUMMARY (7 days)   ║
 ╠══════════════════════════════════════╣
 ║  NotebookEdit:     42 uses           ║
 ║  CustomMCP:        15 uses           ║
@@ -286,21 +286,21 @@ Test Suite → Warmup → Timed Operations → Statistics → Report
 ║  Scenario: Safe Files (package.json, src/*.ts)           ║
 ║  ├─ Without Fast Path: 68ms (mean), 72ms (p95)          ║
 ║  ├─ With Fast Path:     12ms (mean), 15ms (p95)         ║
-║  └─ Improvement:        82% reduction ✅                  ║
+║  └─ Improvement:        82% reduction                   ║
 ║                                                          ║
 ║  Scenario: Suspicious Files (.env, credentials.json)     ║
 ║  ├─ Without Fast Path: 75ms (mean), 80ms (p95)          ║
 ║  ├─ With Fast Path:     45ms (mean), 50ms (p95)         ║
-║  └─ Improvement:        40% reduction ✅                  ║
+║  └─ Improvement:        40% reduction                   ║
 ║                                                          ║
 ║  Scenario: Dangerous Files (/etc/passwd, ~/.ssh/id_rsa) ║
 ║  ├─ Without Fast Path: 70ms (mean), 75ms (p95)          ║
 ║  ├─ With Fast Path:     18ms (mean), 22ms (p95)         ║
-║  └─ Improvement:        74% reduction ✅ (faster block)  ║
+║  └─ Improvement:        74% reduction  (faster block)  ║
 ║                                                          ║
 ║  Parallel Operations (10 concurrent Reads):              ║
 ║  ├─ Without Fast Path: 685ms (causes API errors)        ║
-║  ├─ With Fast Path:     125ms (no errors) ✅              ║
+║  ├─ With Fast Path:     125ms (no errors)               ║
 ║  └─ Improvement:        82% reduction                    ║
 ╚══════════════════════════════════════════════════════════╝
 ```
@@ -399,24 +399,24 @@ Test Suite → Warmup → Timed Operations → Statistics → Report
 ## Success Criteria
 
 ### Functional
-- ✅ Score displays on every violation
-- ✅ Banner shows on session start (once)
-- ✅ Unknown tools tracked and notified
-- ✅ Benchmarks run and report accurately
+-  Score displays on every violation
+-  Banner shows on session start (once)
+-  Unknown tools tracked and notified
+-  Benchmarks run and report accurately
 
 ### Non-Functional
-- ✅ UX overhead <5ms per operation
-- ✅ All 108 existing tests still pass
-- ✅ New features add 96+ tests (24 per feature)
-- ✅ Zero security regressions
-- ✅ Configuration backward compatible
+-  UX overhead <5ms per operation
+-  All 108 existing tests still pass
+-  New features add 96+ tests (24 per feature)
+-  Zero security regressions
+-  Configuration backward compatible
 
 ### Quality
-- ✅ 100% TDD coverage
-- ✅ SOLID principles maintained
-- ✅ Design patterns applied appropriately
-- ✅ No code duplication
-- ✅ Clear separation of concerns
+-  100% TDD coverage
+-  SOLID principles maintained
+-  Design patterns applied appropriately
+-  No code duplication
+-  Clear separation of concerns
 
 ---
 

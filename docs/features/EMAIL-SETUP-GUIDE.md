@@ -34,28 +34,28 @@ WoW System v5.0.1+ includes secure email alerting capability with:
 
 ### All Security Requirements Met
 
-✅ **Credentials in OS Keychain**
+ **Credentials in OS Keychain**
 - Linux/WSL: `libsecret-tools` (GNOME Keyring)
 - macOS: Native Keychain via `security` command
 
-✅ **App-Specific Passwords Only**
+ **App-Specific Passwords Only**
 - Gmail: App Passwords (16 characters)
 - Outlook: App Passwords or account password
 - Custom: Application-specific credentials
 
-✅ **Retrieved On-Demand**
+ **Retrieved On-Demand**
 - Credentials never stored in memory long-term
 - Automatically cleared after use
 
-✅ **Filtered from ALL Logs**
+ **Filtered from ALL Logs**
 - Pattern: `(password|pass|credentials|secret|apikey|token|auth)`
 - Applied to all log outputs
 
-✅ **Graceful Fallback**
+ **Graceful Fallback**
 - File-based alerts if email not configured
 - Saved to: `$WOW_DATA_DIR/email-alerts.log`
 
-✅ **User Authentication Required**
+ **User Authentication Required**
 - First-time setup requires user interaction
 - Keychain may prompt for system password
 

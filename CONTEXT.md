@@ -6,7 +6,7 @@
 
 ---
 
-## 🎯 What This Project Is
+##  What This Project Is
 
 The **Ways of Working (WoW) System** is an advanced enforcement and intelligence layer for Claude Code that ensures adherence to development best practices through hooks, behavioral tracking, and intelligent guidance.
 
@@ -14,7 +14,7 @@ It's designed to **enforce** your personal development principles by interceptin
 
 ---
 
-## 📖 Historical Context
+##  Historical Context
 
 ### The Journey
 
@@ -62,7 +62,7 @@ It's designed to **enforce** your personal development principles by interceptin
 
 ---
 
-## 💔 What Happened - The Deletion
+##  What Happened - The Deletion
 
 ### The Incident
 
@@ -79,34 +79,34 @@ It's designed to **enforce** your personal development principles by interceptin
 
 ### What Was Recoverable
 
-✅ **Documentation**:
+ **Documentation**:
 - v3.5.0 README with feature descriptions
 - v4.0 IMPLEMENTATION-SUMMARY.md with design details
 - WOW-COMPLIANCE.md with organizational principles
 - v3.5.0 settings.json with hook configurations
 
-❌ **Not Recoverable**:
+ **Not Recoverable**:
 - Actual bash script implementations
 - Complete v4.0.2 codebase
 - Working settings.json for v4.0
 
 ---
 
-## 🏗️ Why This Project Exists Now
+## ️ Why This Project Exists Now
 
 ### The New Architecture Decision
 
 **Previous Mistake**: WoW system lived inside `.claude` folder
-- ❌ Not version controlled
-- ❌ Lost when `.claude` was deleted
-- ❌ Coupled to AI-Dev-Environment project
+-  Not version controlled
+-  Lost when `.claude` was deleted
+-  Coupled to AI-Dev-Environment project
 
 **New Strategy**: WoW system as standalone project
-- ✅ Independent git repository
-- ✅ Proper project structure
-- ✅ Can be pushed to GitHub
-- ✅ Deployed to `.claude` via symlink
-- ✅ Safe from accidental deletion (source in Projects folder)
+-  Independent git repository
+-  Proper project structure
+-  Can be pushed to GitHub
+-  Deployed to `.claude` via symlink
+-  Safe from accidental deletion (source in Projects folder)
 
 ### The Deployment Model
 
@@ -132,7 +132,7 @@ RUNTIME (Production):
 
 ---
 
-## 🎯 Core WoW Principles Being Enforced
+##  Core WoW Principles Being Enforced
 
 ### 1. **Edit > Create** (Edit-First Philosophy)
 - Prefer editing existing files over creating new ones
@@ -146,9 +146,9 @@ RUNTIME (Production):
 - **Whitelist**: README.md, LICENSE, package.json, START-HERE.md, config files
 
 ### 3. **Git Commit Quality**
-- ❌ No emojis in commit messages
-- ✅ Proper author: `Chude <chude@emeke.org>`
-- ✅ Meaningful commit messages (focus on "why" not "what")
+-  No emojis in commit messages
+-  Proper author: `Chude <chude@emeke.org>`
+-  Meaningful commit messages (focus on "why" not "what")
 
 ### 4. **Enterprise-Grade Standards**
 - No MVP, no POC - production-ready only
@@ -163,7 +163,7 @@ RUNTIME (Production):
 
 ---
 
-## 📊 What v4.0.2 Could Do
+##  What v4.0.2 Could Do
 
 ### Real-Time Enforcement
 - **SessionStart**: Initialize state, display WoW banner
@@ -193,7 +193,7 @@ Base Score: 70 points
 
 ---
 
-## 🚀 What We're Building Now
+##  What We're Building Now
 
 ### WoW System v4.1
 
@@ -219,7 +219,7 @@ Base Score: 70 points
 
 ---
 
-## 📚 Reference Materials
+##  Reference Materials
 
 Located in `.archive/`:
 - `wow-system-v3.5/` - v3.5.0 implementation (settings.json, README)
@@ -228,18 +228,18 @@ Located in `.archive/`:
 
 ---
 
-## 🎯 Success Criteria for v4.1
+##  Success Criteria for v4.1
 
-1. ✅ Full v4.0.2 feature parity (from documentation)
-2. ✅ Extensible plugin architecture
-3. ✅ Comprehensive error handling
-4. ✅ Beautiful, informative UX
-5. ✅ Secure by design
-6. ✅ Well-documented
-7. ✅ Production-ready
-8. ✅ Git repository with proper versioning
-9. ✅ Deployable with single command
-10. ✅ Never loses functionality again (proper backups)
+1.  Full v4.0.2 feature parity (from documentation)
+2.  Extensible plugin architecture
+3.  Comprehensive error handling
+4.  Beautiful, informative UX
+5.  Secure by design
+6.  Well-documented
+7.  Production-ready
+8.  Git repository with proper versioning
+9.  Deployable with single command
+10.  Never loses functionality again (proper backups)
 
 ---
 

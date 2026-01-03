@@ -275,7 +275,7 @@ Session Events → Analytics Collector → Aggregation Engine → Trend Calculat
 **Weekly Summary** (shown on session start, configurable):
 ```
 ╔══════════════════════════════════════════════════════════╗
-║  📊 WEEKLY ANALYTICS SUMMARY                             ║
+║   WEEKLY ANALYTICS SUMMARY                             ║
 ╠══════════════════════════════════════════════════════════╣
 ║  Week of Oct 12-18, 2025                                 ║
 ║                                                          ║
@@ -290,7 +290,7 @@ Session Events → Analytics Collector → Aggregation Engine → Trend Calculat
 ║  Most Common Violation: Path traversal (8 occurrences)   ║
 ║  Biggest Improvement: Fewer bash violations (-60%)       ║
 ║                                                          ║
-║  Milestone: 🎉 100 sessions completed!                   ║
+║  Milestone:  100 sessions completed!                   ║
 ╚══════════════════════════════════════════════════════════╝
 ```
 
@@ -403,7 +403,7 @@ Violation Event → Pattern Detector → Learning Suggestions → User Notificat
 **For repeated path traversal**:
 ```
 ╔══════════════════════════════════════════════════════════╗
-║  💡 LEARNING OPPORTUNITY                                 ║
+║   LEARNING OPPORTUNITY                                 ║
 ╠══════════════════════════════════════════════════════════╣
 ║  Pattern Detected: Path traversal (3rd time this week)   ║
 ║                                                          ║
@@ -420,7 +420,7 @@ Violation Event → Pattern Detector → Learning Suggestions → User Notificat
 **For repeated credential exposure**:
 ```
 ╔══════════════════════════════════════════════════════════╗
-║  ⚠️  RECURRING SECURITY ISSUE                            ║
+║    RECURRING SECURITY ISSUE                            ║
 ╠══════════════════════════════════════════════════════════╣
 ║  Pattern: Credentials in code (5th occurrence)           ║
 ║                                                          ║

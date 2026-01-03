@@ -135,13 +135,13 @@ wow_validate_structure "$PROJECT_PATH"
 
 ## When to Update This Config
 
-### ✅ DO Update When:
+###  DO Update When:
 1. **New framework convention** discovered (e.g., SvelteKit needs `routes/` in root)
 2. **New file type** becomes standard (e.g., `.astro` files)
 3. **Validation rules** need adjustment based on real-world feedback
 4. **Security patterns** identified (new file types that shouldn't be moved)
 
-### ❌ DON'T Update For:
+###  DON'T Update For:
 1. **Project-specific preferences** - Use `.project.jsonl` for overrides
 2. **Temporary exceptions** - Document in project CLAUDE.md instead
 3. **Experimental features** - Wait until widely adopted
@@ -345,13 +345,13 @@ jq -r '.framework_exceptions.nextjs' ~/Projects/wow-system/config/wow-structure-
 ### 1. Single Source of Truth (SSOT)
 **Never duplicate structure rules.** Always source from config.
 
-❌ **Wrong:**
+ **Wrong:**
 ```bash
 # Hardcoded in script
 REQUIRED_FOLDERS=("src" "docs" "tests")
 ```
 
-✅ **Correct:**
+ **Correct:**
 ```bash
 # Load from config
 REQUIRED_FOLDERS=$(jq -r '.structure.folders.required | keys[]' "$WOW_CONFIG")
@@ -360,7 +360,7 @@ REQUIRED_FOLDERS=$(jq -r '.structure.folders.required | keys[]' "$WOW_CONFIG")
 ### 2. Graceful Degradation
 **Always provide fallback.** Don't fail if config missing.
 
-✅ **Correct:**
+ **Correct:**
 ```bash
 if [ -f "$WOW_CONFIG" ] && command -v jq &> /dev/null; then
     # Load from config
@@ -368,34 +368,34 @@ if [ -f "$WOW_CONFIG" ] && command -v jq &> /dev/null; then
 else
     # Embedded fallback
     REQUIRED=("src" "docs" "tests")
-    echo "⚠️  Using embedded defaults (config not found)"
+    echo "  Using embedded defaults (config not found)"
 fi
 ```
 
 ### 3. Version Compatibility
 **Check versions match.** Warn on mismatch.
 
-✅ **Correct:**
+ **Correct:**
 ```bash
 CONFIG_VERSION=$(jq -r '.version' "$WOW_CONFIG")
 TOOL_VERSION="1.0.0"
 
 if [ "$CONFIG_VERSION" != "$TOOL_VERSION" ]; then
-    echo "⚠️  Version mismatch: config v$CONFIG_VERSION, tool expects v$TOOL_VERSION"
+    echo "  Version mismatch: config v$CONFIG_VERSION, tool expects v$TOOL_VERSION"
 fi
 ```
 
 ### 4. Extensibility
 **Framework exceptions, not hardcoded special cases.**
 
-❌ **Wrong:**
+ **Wrong:**
 ```bash
 if [ "$FRAMEWORK" = "nextjs" ]; then
     # Allow app/ folder
 fi
 ```
 
-✅ **Correct:**
+ **Correct:**
 ```bash
 ALLOWED_FOLDERS=$(jq -r ".framework_exceptions.${FRAMEWORK}.allowed_root_folders[]" "$WOW_CONFIG")
 ```
@@ -458,19 +458,19 @@ If you're unsure about a change:
 
 You've successfully worked with the structure standard if:
 
-✅ No hardcoded structure rules in tools
-✅ All tools source from config file
-✅ Framework exceptions properly defined
-✅ Version tracked and documented
-✅ CHANGELOG updated
-✅ Tests pass
-✅ Documentation updated
+ No hardcoded structure rules in tools
+ All tools source from config file
+ Framework exceptions properly defined
+ Version tracked and documented
+ CHANGELOG updated
+ Tests pass
+ Documentation updated
 
 ---
 
 **Remember:** This config affects every project. Changes should be well-reasoned, tested, and documented. When in doubt, be conservative.
 
-**Good luck!** 🚀
+**Good luck!** 
 
 ---
 

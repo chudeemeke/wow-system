@@ -52,11 +52,11 @@ User always has final control
 
 ## Success Criteria
 
-- ✅ Zero catastrophic operations execute
-- ✅ Zero false positives on normal workflows
-- ✅ Clear visibility into blocks
-- ✅ Easy to extend
-- ✅ Transparent until needed
+-  Zero catastrophic operations execute
+-  Zero false positives on normal workflows
+-  Clear visibility into blocks
+-  Easy to extend
+-  Transparent until needed
 
 ---
 

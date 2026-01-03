@@ -108,7 +108,7 @@
 - Future solution: Context-aware scanning by file type (v6.0 idea)
 - Lesson: File type matters - docs need different rules than executables
 
-**4. Authority and Approval Workflow Confusion** ⚠️ **CRITICAL**
+**4. Authority and Approval Workflow Confusion**  **CRITICAL**
 - AI making decisions without waiting for user approval
 - User complaint (CAPS emphasis): "I NEED TO BE THE ONE THAT ACTUALLY SAYS YES (final confirmation), NOT YOU"
 - Evidence: AI presented 3 options, recommended Option 1, then executed it WITHOUT user confirmation

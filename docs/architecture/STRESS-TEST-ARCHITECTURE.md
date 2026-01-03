@@ -78,11 +78,11 @@ tests/stress/
 **Objective**: Validate system handles high-volume operations without degradation
 
 **Acceptance Criteria**:
-- ✅ 10,000 operations complete successfully
-- ✅ No performance degradation (P95 latency stays < 50ms)
-- ✅ No failures (100% success rate)
-- ✅ Total duration < 5 minutes
-- ✅ Memory usage stable (< 100MB growth)
+-  10,000 operations complete successfully
+-  No performance degradation (P95 latency stays < 50ms)
+-  No failures (100% success rate)
+-  Total duration < 5 minutes
+-  Memory usage stable (< 100MB growth)
 
 **Workload Mix** (Realistic distribution):
 - 40% Bash handler (most common)
@@ -124,11 +124,11 @@ assert memory_growth < 100MB
 **Objective**: Validate thread-safety and race condition handling
 
 **Acceptance Criteria**:
-- ✅ 50 parallel operations complete without conflicts
-- ✅ No race conditions in state manager
-- ✅ No file lock contention
-- ✅ No data corruption in session metrics
-- ✅ All operations return correct results
+-  50 parallel operations complete without conflicts
+-  No race conditions in state manager
+-  No file lock contention
+-  No data corruption in session metrics
+-  All operations return correct results
 
 **Workload Scenarios**:
 1. **Parallel Reads**: 50 simultaneous Read operations
@@ -170,11 +170,11 @@ assert state_manager_consistent
 **Objective**: Validate stability over extended time periods
 
 **Acceptance Criteria**:
-- ✅ Session runs for 8+ hours without crash
-- ✅ Memory usage remains stable (no leaks)
-- ✅ Performance remains consistent
-- ✅ No file descriptor leaks
-- ✅ No state corruption
+-  Session runs for 8+ hours without crash
+-  Memory usage remains stable (no leaks)
+-  Performance remains consistent
+-  No file descriptor leaks
+-  No state corruption
 
 **Workload Profile**:
 - Realistic operation rate: 10 ops/minute (4,800 ops over 8 hours)
@@ -215,10 +215,10 @@ assert performance_consistent
 **Objective**: Detect and quantify memory leaks
 
 **Acceptance Criteria**:
-- ✅ Memory growth rate < 1MB per 1,000 operations
-- ✅ No unbounded growth in session state
-- ✅ No file descriptor leaks
-- ✅ Proper cleanup after session end
+-  Memory growth rate < 1MB per 1,000 operations
+-  No unbounded growth in session state
+-  No file descriptor leaks
+-  Proper cleanup after session end
 
 **Profiling Approach**:
 ```bash
@@ -253,11 +253,11 @@ assert growth < 1MB
 **Objective**: Validate security controls against attack patterns
 
 **Acceptance Criteria**:
-- ✅ 10,000 malicious patterns blocked (100% block rate)
-- ✅ No bypasses via encoding, obfuscation, TOCTOU
-- ✅ No credential leaks
-- ✅ No SSRF vulnerabilities
-- ✅ No path traversal bypasses
+-  10,000 malicious patterns blocked (100% block rate)
+-  No bypasses via encoding, obfuscation, TOCTOU
+-  No credential leaks
+-  No SSRF vulnerabilities
+-  No path traversal bypasses
 
 **Attack Pattern Categories**:
 
@@ -342,11 +342,11 @@ assert bypassed_patterns == 0
 5. **Orchestrator Failure**: Core module fails to load
 
 **Acceptance Criteria**:
-- ✅ System fails open (allows operation if enforcement unavailable)
-- ✅ Errors logged with context
-- ✅ Recovery automatic where possible
-- ✅ No cascading failures
-- ✅ State restored from backup
+-  System fails open (allows operation if enforcement unavailable)
+-  Errors logged with context
+-  Recovery automatic where possible
+-  No cascading failures
+-  State restored from backup
 
 **Implementation Strategy**:
 ```bash
@@ -561,12 +561,12 @@ metrics_finalize() {
 
 After passing all stress tests, we can claim:
 
-✅ "Stress-tested with 10,000+ operations"
-✅ "Zero memory leaks in 8-hour sessions"
-✅ "Security-audited against 10,000 attack patterns"
-✅ "Production-proven concurrency handling"
-✅ "Graceful degradation under failure"
-✅ "Enterprise-grade reliability"
+ "Stress-tested with 10,000+ operations"
+ "Zero memory leaks in 8-hour sessions"
+ "Security-audited against 10,000 attack patterns"
+ "Production-proven concurrency handling"
+ "Graceful degradation under failure"
+ "Enterprise-grade reliability"
 
 These become differentiated marketing claims backed by hard data.
 

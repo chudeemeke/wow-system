@@ -10,13 +10,13 @@
 
 The **WoW (World of Wisdom) Structure Standard** is the **Single Source of Truth** for project folder organization across all development projects. It defines:
 
-- ✅ **Required folders**: src/, docs/, tests/
-- ✅ **Recommended folders**: scripts/, config/, assets/
-- ✅ **Optional folders**: public/, build/, dist/, lib/
-- ✅ **Root file whitelist**: What belongs in project root
-- ✅ **Framework exceptions**: Next.js, Python, Rust, Go, Node.js
-- ✅ **Migration rules**: How to classify and move files
-- ✅ **Validation rules**: Error vs warning severity
+-  **Required folders**: src/, docs/, tests/
+-  **Recommended folders**: scripts/, config/, assets/
+-  **Optional folders**: public/, build/, dist/, lib/
+-  **Root file whitelist**: What belongs in project root
+-  **Framework exceptions**: Next.js, Python, Rust, Go, Node.js
+-  **Migration rules**: How to classify and move files
+-  **Validation rules**: Error vs warning severity
 
 ---
 
@@ -151,7 +151,7 @@ REQUIRED=$(jq -r '.structure.folders.required | keys[]' "$WOW_STRUCTURE_CONFIG")
 
 for folder in $REQUIRED; do
     if [ ! -d "$PROJECT_PATH/$folder" ]; then
-        echo "❌ Missing required folder: $folder"
+        echo " Missing required folder: $folder"
     fi
 done
 ```
@@ -185,7 +185,7 @@ FRAMEWORK="nextjs"
 ALLOWED_FOLDERS=$(jq -r ".framework_exceptions.${FRAMEWORK}.allowed_root_folders[]" "$WOW_STRUCTURE_CONFIG" 2>/dev/null)
 
 if echo "$ALLOWED_FOLDERS" | grep -q "^app$"; then
-    echo "✅ Next.js allows app/ in root"
+    echo " Next.js allows app/ in root"
 fi
 ```
 
@@ -273,7 +273,7 @@ STRUCTURE_VERSION=$(cat ~/Projects/wow-system/config/STRUCTURE_STANDARD_VERSION 
 REQUIRED_VERSION="1.0.0"
 
 if [ "$STRUCTURE_VERSION" != "$REQUIRED_VERSION" ]; then
-    echo "⚠️  Warning: Structure standard v$STRUCTURE_VERSION (expected v$REQUIRED_VERSION)"
+    echo "  Warning: Structure standard v$STRUCTURE_VERSION (expected v$REQUIRED_VERSION)"
 fi
 ```
 
@@ -372,7 +372,7 @@ jq . ~/Projects/wow-system/config/wow-structure-standard.json
 
 ```bash
 $ migrate-project my-project
-⚠️  Warning: Structure standard v2.0.0 (tool expects v1.0.0)
+  Warning: Structure standard v2.0.0 (tool expects v1.0.0)
 
 # Solution: Update tool or downgrade config
 ```

@@ -87,9 +87,9 @@ For each pet peeve:
 **NOW - But iteratively**
 
 ### Phase 1: Foundation (Do This Now)
-- ✅ Created `docs/principles/` structure
-- ✅ Created `PHILOSOPHY.md` with core principles
-- ✅ Created `README.md` with organization guide
+-  Created `docs/principles/` structure
+-  Created `PHILOSOPHY.md` with core principles
+-  Created `README.md` with organization guide
 - ⏳ Next: Create `v5.0/` folder with design decisions
 
 ### Phase 2: Capture Real-Time (Ongoing)
@@ -233,16 +233,16 @@ Create these now (10 minutes each):
 ## Final Recommendations
 
 ### Do This:
-1. ✅ **Start small** - Capture raw notes, refine later
-2. ✅ **Be specific** - Real examples beat abstract principles
-3. ✅ **Iterate** - Philosophy evolves with the system
-4. ✅ **Make it actionable** - Can you test it? Can you code it?
+1.  **Start small** - Capture raw notes, refine later
+2.  **Be specific** - Real examples beat abstract principles
+3.  **Iterate** - Philosophy evolves with the system
+4.  **Make it actionable** - Can you test it? Can you code it?
 
 ### Don't Do This:
-1. ❌ **Overengineer** - Don't create 50-page manifestos
-2. ❌ **Wait for perfection** - Rough notes today > perfect docs never
-3. ❌ **Document in isolation** - Link to code, issues, PRs
-4. ❌ **Ignore feedback** - Philosophy should evolve with evidence
+1.  **Overengineer** - Don't create 50-page manifestos
+2.  **Wait for perfection** - Rough notes today > perfect docs never
+3.  **Document in isolation** - Link to code, issues, PRs
+4.  **Ignore feedback** - Philosophy should evolve with evidence
 
 ---
 

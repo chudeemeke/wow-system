@@ -4,7 +4,7 @@
 
 ---
 
-## 🎯 Development Philosophy
+##  Development Philosophy
 
 **Build → Test → Deploy → Iterate**
 
@@ -15,7 +15,7 @@
 
 ---
 
-## 📋 Phase Overview
+##  Phase Overview
 
 | Phase | Goal | Duration | Deliverable |
 |-------|------|----------|-------------|
@@ -35,14 +35,14 @@
 ## Phase 0: Foundation
 
 ### Goals
-- ✅ Project structure created
-- ✅ Git repository initialized
-- ✅ Basic deployment script working
-- ✅ Minimal "Hello World" hook
+-  Project structure created
+-  Git repository initialized
+-  Basic deployment script working
+-  Minimal "Hello World" hook
 
 ### Tasks
 
-**0.1. Project Setup** ✅ (Already Done)
+**0.1. Project Setup**  (Already Done)
 - [x] Create directory structure
 - [x] Migrate archive files
 - [x] Create documentation (CONTEXT.md, ARCHITECTURE.md, this plan)
@@ -75,7 +75,7 @@ git commit -m "Initial commit: WoW System v4.1 project structure
 - Comprehensive documentation (CONTEXT, ARCHITECTURE, IMPLEMENTATION-PLAN)
 - Clean separation from AI-Dev-Environment project
 
-🤖 Generated with Claude Code
+ Generated with Claude Code
 Co-Authored-By: Claude <noreply@anthropic.com>"
 ```
 
@@ -88,7 +88,7 @@ set -euo pipefail
 CLAUDE_HOME="${CLAUDE_HOME:-/mnt/c/Users/Destiny/.claude}"
 WOW_SRC="$(cd "$(dirname "$0")/.." && pwd)/src"
 
-echo "🚀 Deploying WoW System v4.1..."
+echo " Deploying WoW System v4.1..."
 
 # Create symlink
 if [ -L "$CLAUDE_HOME/wow-system" ]; then
@@ -96,15 +96,15 @@ if [ -L "$CLAUDE_HOME/wow-system" ]; then
 fi
 ln -sf "$WOW_SRC" "$CLAUDE_HOME/wow-system"
 
-echo "✅ Symlink created: $CLAUDE_HOME/wow-system → $WOW_SRC"
-echo "🎉 Deployment complete!"
+echo " Symlink created: $CLAUDE_HOME/wow-system → $WOW_SRC"
+echo " Deployment complete!"
 ```
 
 **0.4. Hello World Hook**
 ```bash
 # File: src/hooks/session-start.sh
 #!/bin/bash
-echo "🏆 WoW System v4.1 - Hello World!"
+echo " WoW System v4.1 - Hello World!"
 echo "   System is active and monitoring your session."
 exit 0
 ```
@@ -136,11 +136,11 @@ chmod +x scripts/deploy.sh src/hooks/session-start.sh
 ```
 
 ### Success Criteria
-- ✅ Git repository initialized
-- ✅ Deploy script works
-- ✅ Symlink created correctly
-- ✅ Basic hook executes on SessionStart
-- ✅ "Hello World" message appears
+-  Git repository initialized
+-  Deploy script works
+-  Symlink created correctly
+-  Basic hook executes on SessionStart
+-  "Hello World" message appears
 
 ---
 
@@ -234,11 +234,11 @@ test_state_increment() {
 ```
 
 ### Success Criteria
-- ✅ State can be initialized
-- ✅ Read/write operations work
-- ✅ Session management functional
-- ✅ Config loaded correctly
-- ✅ All unit tests pass
+-  State can be initialized
+-  Read/write operations work
+-  Session management functional
+-  Config loaded correctly
+-  All unit tests pass
 
 ---
 
@@ -349,10 +349,10 @@ wow::handlers::route() {
 ```
 
 ### Success Criteria
-- ✅ All hooks execute without errors
-- ✅ Orchestrator loads all modules
-- ✅ Handler routing works (even if handlers are stubs)
-- ✅ Basic feedback displayed
+-  All hooks execute without errors
+-  Orchestrator loads all modules
+-  Handler routing works (even if handlers are stubs)
+-  Basic feedback displayed
 
 ---
 
@@ -373,7 +373,7 @@ wow::handlers::bash() {
 
   # Check for dangerous commands
   if echo "$command" | grep -qE "rm -rf /|sudo rm -rf|chmod 777"; then
-    wow::ui::feedback "☠️ DANGEROUS COMMAND BLOCKED" "red"
+    wow::ui::feedback " DANGEROUS COMMAND BLOCKED" "red"
     wow::state::append_audit "VIOLATION:DANGEROUS_CMD:$command"
     wow::state::set "score" $(($(wow::state::get "score") - 10))
     exit 2  # Block
@@ -382,12 +382,12 @@ wow::handlers::bash() {
   # Auto-fix git commits
   if echo "$command" | grep -q "git commit"; then
     # Remove emojis
-    command=$(echo "$command" | sed 's/[🎉🚀✨🔥💯😊👍🎯💪🌟🎨🐛📝♻️⚡💥🎊🎈]//g')
+    command=$(echo "$command" | sed 's/[]//g')
     # Add author
     if ! echo "$command" | grep -q "author.*Chude"; then
       command="$command --author=\"Chude <chude@emeke.org>\""
     fi
-    wow::ui::feedback "✅ AUTO-FIX: Git commit sanitized" "green"
+    wow::ui::feedback " AUTO-FIX: Git commit sanitized" "green"
     tool_input=$(echo "$tool_input" | jq ".command = \"$command\"")
   fi
 
@@ -407,15 +407,15 @@ wow::handlers::write() {
 
   if [ "$risk" -eq 0 ]; then
     # CRITICAL: Block
-    wow::ui::feedback "🚫 BLOCKED: System file write" "red"
+    wow::ui::feedback " BLOCKED: System file write" "red"
     exit 2
   elif [ "$risk" -le 3 ]; then
     # HIGH: Warn
-    wow::ui::feedback "⚠️ WARNING: Root folder write (allowed, -3 points)" "yellow"
+    wow::ui::feedback " WARNING: Root folder write (allowed, -3 points)" "yellow"
     wow::state::set "score" $(($(wow::state::get "score") - 3))
   else
     # MEDIUM/LOW: Gentle reminder
-    wow::ui::feedback "📝 Creating file (consider editing existing)" "blue"
+    wow::ui::feedback " Creating file (consider editing existing)" "blue"
     wow::state::set "score" $(($(wow::state::get "score") - 1))
   fi
 
@@ -438,10 +438,10 @@ wow::handlers::edit() {
 
   streak=$(wow::state::get "streak")
   badges=""
-  [ "$streak" -ge 10 ] && badges="🏆 Master"
+  [ "$streak" -ge 10 ] && badges=" Master"
   [ "$streak" -ge 5 ] && [ "$streak" -lt 10 ] && badges="⭐ Streak"
 
-  wow::ui::feedback "✅ Excellent! Edit #$streak (WoW compliant) $badges" "green"
+  wow::ui::feedback " Excellent! Edit #$streak (WoW compliant) $badges" "green"
 
   echo "$tool_input"
   return 0
@@ -449,11 +449,11 @@ wow::handlers::edit() {
 ```
 
 ### Success Criteria
-- ✅ Dangerous bash commands blocked
-- ✅ Git commits auto-fixed
-- ✅ Write operations assessed and warned/blocked appropriately
-- ✅ Edit operations praised
-- ✅ Streak tracking works
+-  Dangerous bash commands blocked
+-  Git commits auto-fixed
+-  Write operations assessed and warned/blocked appropriately
+-  Edit operations praised
+-  Streak tracking works
 
 ---
 
@@ -546,10 +546,10 @@ wow::strategies::pattern::trend() {
 ```
 
 ### Success Criteria
-- ✅ Risk assessment returns correct levels
-- ✅ Score calculation matches expected values
-- ✅ ECR and VR calculated correctly
-- ✅ Trend detection works
+-  Risk assessment returns correct levels
+-  Score calculation matches expected values
+-  ECR and VR calculated correctly
+-  Trend detection works
 
 ---
 
@@ -571,11 +571,11 @@ wow::ui::banner::display() {
 
   cat << EOF
 ╔══════════════════════════════════════════════════════════╗
-║              🏆 WoW System v4.1 Active                   ║
+║               WoW System v4.1 Active                   ║
 ║        Ways of Working Intelligence Enabled              ║
 ╠══════════════════════════════════════════════════════════╣
 ║  Score: $score/100 | Streak: $streak | Trust: HIGH       ║
-║  Your coding excellence is being tracked ✨               ║
+║  Your coding excellence is being tracked                ║
 ╚══════════════════════════════════════════════════════════╝
 EOF
 }
@@ -591,7 +591,7 @@ wow::ui::metrics::display() {
   local vr=$(wow::strategies::vr::calculate)
   local trend=$(wow::strategies::pattern::trend)
 
-  echo "⚡ Score:${score}(${grade}) | ECR:${ecr} | VR:${vr}% | Trend:${trend} | Streak:${streak}"
+  echo " Score:${score}(${grade}) | ECR:${ecr} | VR:${vr}% | Trend:${trend} | Streak:${streak}"
 }
 ```
 
@@ -622,7 +622,7 @@ wow::ui::report::generate() {
 
   cat << EOF
 ═══════════════════════════════════════════════════════════
-🏁 WOW SESSION REPORT
+ WOW SESSION REPORT
 ═══════════════════════════════════════════════════════════
 Final Score: $score/100 ($grade)
 Total Operations: $((edits + creates))
@@ -636,10 +636,10 @@ EOF
 ```
 
 ### Success Criteria
-- ✅ Banner looks beautiful
-- ✅ Metrics bar displays correctly
-- ✅ Feedback is color-coded and clear
-- ✅ Session report is comprehensive
+-  Banner looks beautiful
+-  Metrics bar displays correctly
+-  Feedback is color-coded and clear
+-  Session report is comprehensive
 
 ---
 
@@ -686,10 +686,10 @@ EOF
 - Troubleshooting guide
 
 ### Success Criteria
-- ✅ All tests pass
-- ✅ Hook execution <50ms
-- ✅ No known bugs
-- ✅ Documentation complete
+-  All tests pass
+-  Hook execution <50ms
+-  No known bugs
+-  Documentation complete
 
 ---
 
@@ -728,13 +728,13 @@ wow::plugin::load_all() {
 - Leaderboards (if multiple users)
 
 ### Success Criteria
-- ✅ Plugin system works
-- ✅ Example plugins functional
-- ✅ Advanced features enhance UX
+-  Plugin system works
+-  Example plugins functional
+-  Advanced features enhance UX
 
 ---
 
-## 🚀 Deployment Checklist
+##  Deployment Checklist
 
 Before each deployment:
 - [ ] All tests pass
@@ -750,7 +750,7 @@ Before each deployment:
 
 ---
 
-## 📊 Progress Tracking
+##  Progress Tracking
 
 Use this checklist as you build:
 

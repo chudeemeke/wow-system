@@ -38,43 +38,43 @@ echo "======================="
 bash_version=$(bash --version | head -1)
 echo "Bash version: $bash_version"
 if [[ "${BASH_VERSINFO[0]}" -lt 4 ]]; then
-  echo "❌ Bash 4.0+ required"
+  echo " Bash 4.0+ required"
 else
-  echo "✓ Bash version OK"
+  echo " Bash version OK"
 fi
 
 # Check jq
 if command -v jq >/dev/null 2>&1; then
-  echo "✓ jq installed: $(jq --version)"
+  echo " jq installed: $(jq --version)"
 else
-  echo "❌ jq not installed"
+  echo " jq not installed"
 fi
 
 # Check WoW installation
 if [[ -f "src/infrastructure/orchestrator.sh" ]]; then
-  echo "✓ WoW System found"
+  echo " WoW System found"
 else
-  echo "❌ WoW System not found"
+  echo " WoW System not found"
 fi
 
 # Check configuration
 if [[ -f "config/wow-config.json" ]]; then
   if jq '.' config/wow-config.json >/dev/null 2>&1; then
-    echo "✓ Configuration valid"
+    echo " Configuration valid"
   else
-    echo "❌ Configuration invalid JSON"
+    echo " Configuration invalid JSON"
   fi
 else
-  echo "❌ Configuration file missing"
+  echo " Configuration file missing"
 fi
 
 # Check handlers
 handler_count=$(find src/handlers -name "*-handler.sh" 2>/dev/null | wc -l)
 echo "Handlers found: $handler_count"
 if [[ $handler_count -eq 8 ]]; then
-  echo "✓ All handlers present"
+  echo " All handlers present"
 else
-  echo "⚠️  Expected 8 handlers, found $handler_count"
+  echo "  Expected 8 handlers, found $handler_count"
 fi
 
 # Check tests
@@ -84,12 +84,12 @@ echo "Test files found: $test_count"
 # Test orchestrator initialization
 if source src/infrastructure/orchestrator.sh 2>/dev/null; then
   if orchestrator_init "$(pwd)" 2>/dev/null; then
-    echo "✓ Orchestrator initialization OK"
+    echo " Orchestrator initialization OK"
   else
-    echo "❌ Orchestrator initialization failed"
+    echo " Orchestrator initialization failed"
   fi
 else
-  echo "❌ Failed to source orchestrator"
+  echo " Failed to source orchestrator"
 fi
 
 echo "======================="
@@ -810,9 +810,9 @@ orchestrator_init "$(pwd)"
 
 # Verify
 if handler_list >/dev/null 2>&1; then
-  echo "✓ Reset successful"
+  echo " Reset successful"
 else
-  echo "❌ Reset failed"
+  echo " Reset failed"
   exit 1
 fi
 ```
@@ -850,7 +850,7 @@ state_set "operations" "0"
 # Save
 state_save
 
-echo "✓ State recovered with defaults"
+echo " State recovered with defaults"
 ```
 
 ---
@@ -883,7 +883,7 @@ handler_register "WebFetch" "${handler_dir}/webfetch-handler.sh"
 echo "Registered handlers:"
 handler_list
 
-echo "✓ Handlers rebuilt"
+echo " Handlers rebuilt"
 ```
 
 ---
